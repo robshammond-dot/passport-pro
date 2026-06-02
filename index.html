@@ -293,7 +293,13 @@ const CATS=[
   {id:'cr',name:'Cruising',emoji:'🚢',type:'dest'},
   {id:'lc',name:'Live Chat',emoji:'💬',type:'skill'},
   {id:'em',name:'Email Sales',emoji:'📧',type:'skill'},
-  {id:'ts',name:'Tele Sales',emoji:'📞',type:'skill'}
+  {id:'ts',name:'Tele Sales',emoji:'📞',type:'skill'},
+  {id:'af',name:'Africa',emoji:'🌍',type:'dest'},
+  {id:'mv',name:'Maldives',emoji:'🏖️',type:'dest'},
+  {id:'sus',name:'Sustainability',emoji:'🌱',type:'learn'},
+  {id:'me',name:'Middle East',emoji:'🕌',type:'dest'},
+  {id:'au',name:'Australia',emoji:'🦘',type:'dest'},
+  {id:'sam',name:'South America',emoji:'🌎',type:'dest'}
 ];
 
 const JBID='6a1e8c75f5f4af5e29abe6b2';
@@ -327,8 +333,9 @@ function renderName(){
 function renderCategories(){
   const dest=CATS.filter(c=>c.type==='dest');
   const skill=CATS.filter(c=>c.type==='skill');
+  const learn=CATS.filter(c=>c.type==='learn');
   const cb=c=>`<button class="cb" onclick="pickCat('${c.id}')"><span style="font-size:22px;display:block;margin-bottom:4px">${c.emoji}</span><span style="font-size:11px;font-weight:700;color:#0A52A0;line-height:1.2">${c.name}</span></button>`;
-  app().innerHTML=`${hdr('goHome()')}<div class="inner"><h2 style="margin-top:12px">Hi ${h(S.name)}! &#128075;</h2><p class="sub" style="margin-bottom:20px">Pick a category to start your round</p><p class="sl">&#127757; DESTINATIONS</p><div class="g3">${dest.map(cb).join('')}</div><p class="sl">&#128188; SALES SKILLS</p><div class="g3">${skill.map(cb).join('')}</div></div>`;
+  app().innerHTML=`${hdr('goHome()')}<div class="inner"><h2 style="margin-top:12px">Hi ${h(S.name)}! &#128075;</h2><p class="sub" style="margin-bottom:20px">Pick a category to start your round</p><p class="sl">&#127757; DESTINATIONS</p><div class="g3">${dest.map(cb).join('')}</div><p class="sl">&#128188; SALES SKILLS</p><div class="g3">${skill.map(cb).join('')}</div><p class="sl">&#127807; LEARN</p><div class="g3">${learn.map(cb).join('')}</div></div>`;
 }
 
 function renderQuiz(){
@@ -401,11 +408,11 @@ async function renderLeaderboard(){
 function stopTimer(){clearInterval(S.timer);clearTimeout(S.fbto);}
 
 function startTimer(){
-  S.tLeft=25;stopTimer();
+  S.tLeft=35;stopTimer();
   S.timer=setInterval(()=>{
     S.tLeft--;
     const tw=document.getElementById('tw');
-    if(tw){const p=(S.tLeft/25)*100;const c=S.tLeft>10?'#00AEEF':S.tLeft>5?'#FFA500':'#FF4444';tw.style.width=p+'%';tw.style.background=c;}
+    if(tw){const p=(S.tLeft/35)*100;const c=S.tLeft>15?'#00AEEF':S.tLeft>7?'#FFA500':'#FF4444';tw.style.width=p+'%';tw.style.background=c;}
     if(S.tLeft<=0){stopTimer();handleTimeout();}
   },1000);
 }
