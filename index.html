@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Passport Pro | Thompsons For Travel</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#EDF5FF;min-height:100vh;color:#333}
+#app{display:flex;flex-direction:column;align-items:center;min-height:100vh}
+.hdr{background:#0A52A0;width:100%;padding:13px 18px;display:flex;justify-content:space-between;align-items:center}
+.logo{color:#fff;font-weight:800;font-size:14px;letter-spacing:.5px}
+.logo b{color:#00AEEF}
+.bk{background:none;border:none;color:#fff;cursor:pointer;font-size:20px;line-height:1;padding:2px 8px}
+.inner{width:100%;max-width:480px;padding:16px 18px}
+.card{background:#fff;border-radius:16px;padding:26px;box-shadow:0 4px 20px rgba(10,82,160,.1);width:calc(100% - 36px);max-width:440px;margin:28px 18px}
+.pb{background:#0A52A0;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:10px;font-family:inherit}
+.sb{background:#fff;color:#0A52A0;border:2px solid #0A52A0;border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin-top:8px;font-family:inherit}
+.pb:hover{background:#084a8e}.sb:hover{background:#EDF5FF}
+input{width:100%;padding:13px;font-size:16px;border:2px solid #ddd;border-radius:12px;outline:none;margin-top:8px;font-family:inherit}
+input:focus{border-color:#0A52A0}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+.cb{background:#fff;border:2px solid #E0EAF5;border-radius:14px;padding:14px 6px;cursor:pointer;text-align:center;font-family:inherit;transition:border-color .15s}
+.cb:hover{border-color:#00AEEF}
+.sl{color:#0A52A0;font-weight:800;font-size:11px;letter-spacing:2px;margin:4px 0 10px}
+.pgb{height:5px;border-radius:4px;background:#DDE8F5;margin-bottom:10px}
+.pgb div{height:5px;border-radius:4px;background:#0A52A0;transition:width .3s}
+.tmb{height:7px;border-radius:4px;background:#DDE8F5;margin-bottom:16px}
+.tmb div{height:7px;border-radius:4px;transition:width 1s linear}
+.sr{display:flex;justify-content:space-between;align-items:center;margin:10px 0 8px}
+.stk{background:#FFF3CD;color:#7a5c00;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:800}
+.qb{background:#fff;border-radius:16px;padding:20px;margin-bottom:14px;box-shadow:0 2px 12px rgba(10,82,160,.08)}
+.qt{color:#0A52A0;font-weight:700;font-size:15px;line-height:1.5}
+.os{display:flex;flex-direction:column;gap:10px}
+.op{display:flex;align-items:center;gap:12px;border:2px solid #E0EAF5;border-radius:12px;padding:13px 15px;cursor:pointer;background:#fff;font-family:inherit;font-size:14px;text-align:left;width:100%}
+.op:not([disabled]):hover{border-color:#00AEEF}
+.op[disabled]{cursor:default}
+.op.ok{background:#E6F9ED;border-color:#28A745;color:#155724}
+.op.ng{background:#FDECEE;border-color:#DC3545;color:#721c24}
+.ol{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;background:#EDF5FF;color:#0A52A0}
+.ok .ol{background:#28A745;color:#fff}
+.ng .ol{background:#DC3545;color:#fff}
+.fbx{margin-top:14px;padding:14px;border-radius:12px;font-size:13px;line-height:1.5}
+.fok{background:#E6F9ED;border-left:4px solid #28A745}
+.fng{background:#FFF8E6;border-left:4px solid #FFA500}
+.rb{background:#0A52A0;color:#fff;border-radius:16px;padding:24px;text-align:center;margin:16px 0 14px}
+.rv{max-height:280px;overflow-y:auto}
+.rvi{border-bottom:1px solid #f4f4f4;padding-bottom:10px;margin-bottom:10px}
+.rvi:last-child{border-bottom:none;margin-bottom:0}
+.lt{display:flex;background:#fff;border-radius:12px;padding:4px;margin-bottom:20px;box-shadow:0 2px 8px rgba(10,82,160,.08)}
+.ltb{flex:1;padding:10px;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;font-family:inherit;transition:all .2s}
+.ltb.on{background:#0A52A0;color:#fff}
+.ltb.off{background:transparent;color:#666}
+.ll{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(10,82,160,.08)}
+.lr{display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid #f4f4f4}
+.lr:last-child{border-bottom:none}
+.lr.me{background:#EDF5FF}
+.lrk{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;margin-right:12px;flex-shrink:0}
+h1{color:#0A52A0;font-size:26px;margin:0 0 4px}
+h2{color:#0A52A0;margin:12px 0 4px}
+.sub{color:#666;font-size:14px;line-height:1.6;margin:0 0 20px}
+.note{color:#bbb;font-size:12px;text-align:center;margin-top:12px}
+</style>
+</head>
+<body><div id="app"></div>
+<script>
+// Q format: [question, A, B, C, D, correct(0-3), explanation]
+const QB={
+za:[
+["What is the name of Cape Towns iconic flat-topped mountain?","Lions Head","Table Mountain","Signal Hill","Devils Peak",1,"Table Mountain is a UNESCO World Heritage Site with cable car access and panoramic views over Cape Town and the Atlantic."],
+["Which national park is South Africas flagship Big Five safari destination?","Addo Elephant Park","Hluhluwe-iMfolozi","Kruger National Park","Pilanesberg",2,"Kruger spans Limpopo and Mpumalanga and is one of Africas largest and most celebrated game reserves."],
+["The best months to visit Kruger National Park for game viewing are:","November to January","May to September","February to April","October only",1,"The dry winter season concentrates animals around diminishing water sources, making sightings far more reliable."],
+["Which Cape Winelands town is famous for oak-lined streets and Cape Dutch architecture?","Franschhoek","Paarl","Stellenbosch","Wellington",2,"Stellenbosch is renowned for its well-preserved Cape Dutch buildings, world-class estates and the Dorp Street oak canopy."],
+["The Boulders Beach penguin colony is located near which Cape Town suburb?","Hout Bay","Simons Town","Kommetjie","Gordons Bay",1,"Simons Town's Boulders Beach is home to a large African penguin colony accessible via a short boardwalk."],
+["Approximately how long is the flight from Johannesburg to Cape Town?","1 hour","2 hours","3 hours","4 hours",1,"Direct domestic flights between Johannesburg and Cape Town take approximately 2 hours."],
+["Which town near Cape Town is the world capital of Great White Shark cage diving?","Hermanus","Gansbaai","Knysna","Plettenberg Bay",1,"Gansbaai, near Dyer Island, is the globally recognised centre for Great White Shark cage diving experiences."],
+["Sun City resort is situated adjacent to which national park?","Kruger","Pilanesberg","Addo Elephant","Hluhluwe-iMfolozi",1,"Sun City in the North West province sits alongside Pilanesberg National Park, popular for game drives and safari."],
+["The Garden Route officially runs from Mossel Bay to which eastern endpoint?","Port Elizabeth","East London","Storms River / Tsitsikamma","Knysna",2,"The official Garden Route stretches from Mossel Bay in the west to Storms River in the east."],
+["Which city is South Africas legislative capital where Parliament sits?","Johannesburg","Pretoria","Cape Town","Bloemfontein",2,"Cape Town is the legislative capital. Pretoria is the executive capital and Bloemfontein the judicial capital."],
+["The Big Five in safari tourism originally refers to:","The five largest African animals","The five most dangerous animals to hunt on foot: lion, leopard, rhino, elephant and buffalo","The five rarest African species","Africas five iconic national parks",1,"The term Big Five originated in big-game hunting and refers to the five most challenging animals to hunt on foot."],
+["Robben Island is internationally known as the former prison of which leader?","Desmond Tutu","Steve Biko","Nelson Mandela","Walter Sisulu",2,"Nelson Mandela spent 18 of his 27 prison years on Robben Island, now a UNESCO World Heritage Site and museum."],
+["The Blyde River Canyon in Mpumalanga is one of the worlds largest what?","Desert canyons","Green canyons","River deltas","Volcanic gorges",1,"The Blyde River Canyon is one of the worlds largest green canyons and forms the centrepiece of the Panorama Route."],
+["Franschhoek in the Cape Winelands is known for which strong cultural influence?","English","Malay","French","German",2,"French Huguenot settlers in the late 1600s gave Franschhoek its French heritage, cuisine and wine culture."],
+["Which self-drive route connects Cape Town to the Little Karoo through mountain passes and wine routes?","The N2 Highway","Route 62","The Panorama Route","The Wild Coast Road",1,"Route 62 is the longest wine route in the world, connecting Cape Town to the Little Karoo through scenic mountain passes."]
+],
+mu:[
+["The capital city of Mauritius is:","Curepipe","Port Louis","Grand Baie","Flic en Flac",1,"Port Louis is Mauritius capital and main commercial centre on the northwest coast."],
+["Approximate direct flight time from Johannesburg to Mauritius:","2 hours","4 hours","6 hours","8 hours",1,"The direct flight from Johannesburg to Mauritius takes approximately 4 hours."],
+["South Africans can enter Mauritius visa-free for stays of up to:","30 days","45 days","60 days","90 days",2,"South African passport holders enjoy visa-free access to Mauritius for up to 60 days."],
+["The best time to visit Mauritius to avoid cyclone risk is:","January to March","April to June","May to November","December to February",2,"May to November is the dry season with minimal cyclone risk and consistently good weather."],
+["Which Mauritius beach area is best suited to families due to its calm protected lagoon?","Le Morne","Belle Mare","Grand Baie","Trou aux Biches",1,"Belle Mare on the east coast offers a shallow, calm lagoon ideal for families with young children."],
+["Mauritius is located in which ocean?","Atlantic","Pacific","Indian","Arabian",2,"Mauritius is a small island nation in the southwest Indian Ocean."],
+["Le Morne peninsula in Mauritius is world-renowned for which water sport?","Scuba diving","Kitesurfing","Deep sea fishing","Whale watching",1,"Le Morne is a globally recognised kitesurfing destination due to consistent trade winds channelled by the mountain."],
+["The official currency of Mauritius is the:","Dollar","Franc","Pound","Rupee",3,"The Mauritian Rupee (MUR) is the official currency; major resorts also accept euros and US dollars."],
+["Most Mauritius 5-star resorts traditionally operate on which meal plan?","Room only","Bed and breakfast","Half board (breakfast and dinner)","All-inclusive",2,"Half board is the traditional offering at Mauritius luxury resorts, though all-inclusive options are increasingly available."],
+["The famous multi-coloured earth formation in Mauritius is located at:","Grand Bassin","Chamarel","Black River Gorges","Tamarin",1,"Chamarel Seven Coloured Earths is a striking geological formation of volcanic soils in seven distinct natural colours."],
+["January to March in Mauritius represents:","Peak dry season","The cyclone season","The best kitesurfing window","School holidays only",1,"January to March is Mauritius cyclone season and generally the least advisable time to travel."],
+["Mauritius is approximately how far from South Africa?","500 km","1,200 km","2,000 km","3,000 km",2,"Mauritius lies approximately 2,000 km east of the South African coast in the Indian Ocean."],
+["Which outer island of Mauritius is best positioned as a remote, unspoiled eco-tourism destination?","Ile aux Cerfs","Rodrigues Island","Coin de Mire","Ile aux Aigrettes",1,"Rodrigues is Mauritius outer island, known for its unspoiled environment, warm community feel and eco-tourism focus."],
+["French and English are widely used in Mauritius tourism alongside which local language?","Arabic","Hindi","Mauritian Creole","Malagasy",2,"Mauritian Creole is the mother tongue spoken by most of the population day to day."],
+["What does the Grand Baie area of Mauritius offer that makes it popular with independent travellers?","The calmest lagoon on the island","The most upmarket restaurant and nightlife scene on the island","The closest location to the airport","The cheapest accommodation",1,"Grand Baie on the north coast is Mauritius most cosmopolitan area with restaurants, bars, water sports and shopping."]
+],
+zan:[
+["Zanzibar is a semi-autonomous region belonging to which country?","Kenya","Mozambique","Tanzania","Madagascar",2,"Zanzibar is a semi-autonomous archipelago within the United Republic of Tanzania."],
+["What is the name of Zanzibar historic UNESCO-listed old town?","Zanzibar City","Stone Town","Spice Quarter","Old Dhow Town",1,"Stone Town is Zanzibar cultural heart and a UNESCO World Heritage Site for its blend of African, Arab and colonial architecture."],
+["Which globally famous musician was born in Stone Town, Zanzibar in 1946?","Bob Marley","Freddie Mercury","Peter Gabriel","Mick Jagger",1,"Freddie Mercury, lead vocalist of Queen, was born Farrokh Bulsara in Stone Town and is celebrated with a prominent statue."],
+["Zanzibar is nicknamed the Spice Island because of its:","Large spice markets","Historic spice plantations growing cloves, cinnamon, nutmeg and vanilla","Heavily spiced local cuisine only","Dominance of global spice exports",1,"Zanzibar historic clove and spice plantations earned it the Spice Island nickname centuries ago."],
+["The best time to visit Zanzibar is:","March to May","June to October","November to January","February only",1,"June to October is Zanzibar dry season, offering the most reliable beach weather."],
+["For families visiting Zanzibar, which coast offers more consistent swimming conditions with less tidal variation?","East coast (Paje, Jambiani)","South coast","North coast (Nungwi, Kendwa)","West coast (Stone Town)",2,"The north coast beaches experience less dramatic tidal change, making them safer and more consistent for family swimming."],
+["The Tanzania visa on arrival costs South Africans approximately:","Free","USD 20","USD 50","USD 100",2,"The single-entry Tanzania visa on arrival costs approximately USD 50 for most nationalities including South Africans."],
+["Prison Island near Stone Town is famous for its colony of:","Rare parrots","Giant Aldabra tortoises","Lemurs","Fruit bats",1,"Prison Island (Changuu Island) hosts a colony of giant Aldabra tortoises, some estimated to be over 100 years old."],
+["East coast Zanzibar beaches have which key characteristic consultants must communicate?","No wind at all","Very dramatic tidal changes making swimming impossible at low tide","The warmest water temperatures","Always flat, calm conditions",1,"Paje and Jambiani on the east coast have extreme tidal variation; the lagoon can recede hundreds of metres at low tide."],
+["Paje on Zanzibar east coast is internationally known for:","Luxury 5-star resorts","Scuba diving","Kitesurfing","Deep sea fishing",2,"Paje attracts kitesurfers from around the world due to its consistent southerly winds and shallow lagoon."],
+["The ideal combination itinerary for South African clients visiting Tanzania is:","Zanzibar only","Dar es Salaam city break then Zanzibar","A mainland Tanzania safari followed by a Zanzibar beach extension","Zanzibar plus a Kilimanjaro climb",2,"The classic Tanzania itinerary combines a Serengeti or Ngorongoro safari with a Zanzibar beach extension."],
+["What should consultants advise about dress code when clients visit Stone Town?","No dress code required","Western clothing is banned","Dress modestly (covered shoulders and knees) as Zanzibar is predominantly Muslim","National dress required",2,"Zanzibar is approximately 97% Muslim; modest dress in Stone Town is respectful and culturally important."],
+["The traditional wooden sailing vessel iconic to Zanzibar waters is called a:","Catamaran","Dhow","Felucca","Trimaran",1,"The dhow is the traditional Arab and Swahili wooden sailing vessel still widely used in Zanzibar waters."],
+["Zanzibar is most commonly reached from Dar es Salaam by:","Bridge","Helicopter","Ferry (about 2 hours) or short domestic flight (20 minutes)","Cruise ship only",2,"Both options are available; the ferry takes about 2 hours and is popular with budget travellers, while the short flight is faster."],
+["Mnemba Atoll, located off Zanzibar northeast coast, is particularly known for:","Beach parties","Excellent diving, snorkelling and whale shark sightings","Budget accommodation","Spice production",1,"Mnemba Atoll is one of East Africas premier diving and snorkelling locations, with strong marine biodiversity."]
+],
+bal:[
+["Bali is an island within which country?","Malaysia","Philippines","Indonesia","Thailand",2,"Bali is one of over 17,000 islands making up Indonesia."],
+["What religion sets Bali apart from the rest of predominantly Muslim Indonesia?","Buddhism","Hinduism","Christianity","Animism",1,"Bali is Indonesia only Hindu-majority island, which shapes its temple culture, ceremonies and daily life."],
+["Which Bali area is the cultural and wellness hub known for rice terraces and art?","Seminyak","Kuta","Ubud","Nusa Dua",2,"Ubud is Bali creative and spiritual heart, popular for traditional arts, yoga retreats and rice terrace walks."],
+["Which Bali area is most suitable for families wanting a gated resort with a calm beach?","Kuta","Canggu","Nusa Dua","Legian",2,"Nusa Dua is a purpose-built gated resort enclave with a calm lagoon beach, purpose-designed for families."],
+["What is the approximate flight time from Johannesburg to Bali with one connection?","6 hours","9 hours","12 to 13 hours","16 hours",2,"Bali is typically 12 to 13 hours from Johannesburg via hubs like Singapore, Dubai or Kuala Lumpur."],
+["The best time to visit Bali to avoid the rainy season is:","January to March","April to June","May to September","October to December",2,"May to September is Balis dry season with the most reliable beach and sightseeing weather."],
+["Private pool villas in Bali typically include:","Dormitory-style rooms","A private pool, open-air pavilion and butler or cooking service","City centre location only","Self-catering facilities only",1,"Bali pool villas typically offer a private plunge pool, open-air living areas and personalised villa staff."],
+["The time difference between South Africa (SAST) and Bali is approximately:","2 hours","4 hours","6 hours","8 hours",2,"South Africa is UTC+2 and Bali is UTC+8, placing Bali 6 hours ahead of South Africa."],
+["Balis Nyepi Day of Silence is important for travel planning because:","It brings large celebrations","The entire island including the airport closes for 24 hours","Only Ubud is affected","All beaches close for the year",1,"Nyepi causes a complete island shutdown for 24 hours including Ngurah Rai Airport; flights on this date are cancelled."],
+["Jimbaran Bay in Bali is specifically famous for:","Rooftop cocktail bars","Beachfront seafood restaurants with tables set on the sand at sunset","Surf competitions","Luxury shopping malls",1,"Jimbaran Bay restaurants set tables directly on the beach and are known for fresh seafood dining at sunset."],
+["Which Bali area appeals to a surfer and digital nomad crowd with trendy cafes and a creative vibe?","Nusa Dua","Kuta","Canggu","Sanur",2,"Canggu is Balis hippest neighbourhood, popular with surfers, creatives and digital nomads."],
+["The Gili Islands (Trawangan, Air, Meno) are located off which island and accessible from Bali by fast boat?","Java","Sumatra","Lombok","Sumbawa",2,"The Gili Islands are off the northwest coast of Lombok and are accessed from Bali by a 1.5 to 2 hour fast boat."],
+["For a client interested in traditional Balinese culture, which area is recommended?","Seminyak beach clubs","Kuta nightlife","Ubud: temples, cooking classes and traditional dance performances","Nusa Dua water sports",2,"Ubud offers the richest immersion in Balinese culture, with temple visits, traditional dance, artisan crafts and cooking classes."],
+["What does the option Seminyak versus Nusa Dua represent for a client choosing within Bali?","No meaningful difference","Trendy restaurants and boutiques versus a gated family resort enclave","Budget versus luxury","North versus south Bali",1,"Seminyak suits independent travellers seeking boutiques and restaurants; Nusa Dua suits families wanting a self-contained resort environment."],
+["South African passport holders visiting Bali can enter Indonesia visa-free for stays of up to:","15 days","30 days","60 days","90 days",1,"South Africans currently qualify for 30-day visa-free entry into Indonesia. Always verify current policy at time of booking."]
+],
+th:[
+["The capital city of Thailand is:","Chiang Mai","Phuket","Bangkok","Pattaya",2,"Bangkok is Thailands capital and largest city, serving as the main international hub for the country."],
+["The best time to visit Phuket and Thailands Andaman coast is:","May to October","November to April","June to August","Year-round equally",1,"November to April is the dry season on the Andaman coast, offering the best beach and water conditions."],
+["Which Thai city is known as the northern cultural capital with ancient temples and night markets?","Bangkok","Pattaya","Hua Hin","Chiang Mai",3,"Chiang Mai is the gateway to northern Thailand, renowned for its dozens of temples, night bazaars and elephant sanctuaries."],
+["The Phi Phi Islands are best reached from:","Bangkok only","Phuket or Krabi","Koh Samui","Chiang Mai",1,"Ferry services from both Phuket (90 minutes) and Krabi (60 minutes) connect to the Phi Phi Islands."],
+["Which Thai island is famous as one of the worlds most affordable places to learn to scuba dive?","Phuket","Koh Samui","Koh Tao","Koh Phangan",2,"Koh Tao has built a global reputation for high-quality, affordable dive training and is a major backpacker and dive hub."],
+["The Full Moon Party takes place monthly on which Thai island?","Koh Tao","Koh Samui","Koh Phangan","Koh Lipe",2,"Koh Phangans Haad Rin Beach hosts the Full Moon Party, one of the worlds largest regular beach events."],
+["What cultural advice should consultants give for visiting Buddhist temples in Thailand?","Photography is always banned","Wear swimwear to be comfortable","Remove shoes before entering and dress modestly with covered shoulders and knees","Solo women cannot enter",2,"Temples require footwear removal and modest dress; sleeveless tops and short shorts are typically not permitted."],
+["South African passport holders visiting Thailand for tourism currently require:","A Thai visa applied for in advance","A visa on arrival only","No visa, entering on a visa exemption for up to 30 days","An eVisa only",2,"South Africans are visa-exempt for stays up to 30 days in Thailand for tourism. Always verify current policy."],
+["Bangkok BTS Skytrain is best described as:","A river ferry system","An underground metro only","An elevated rail system connecting shopping and tourist areas efficiently","A tuk-tuk booking platform",2,"The BTS Skytrain is Bangkoks elevated rapid transit network, connecting major hotels, malls and tourist attractions."],
+["For a honeymooning couple wanting seclusion and luxury near Phuket, the recommended destination is:","Koh Phangan (Full Moon Party island)","Koh Tao (dive focused)","Koh Yao Noi (quiet, between Phuket and Krabi)","Koh Samui main beach",2,"Koh Yao Noi offers secluded boutique resorts with stunning Phang Nga Bay scenery, perfect for honeymooners."],
+["Ethical elephant sanctuaries near Chiang Mai are characterised by:","Elephant riding and circus performances","Rescue and rehabilitation with feeding, bathing and observation but no riding","Chaining elephants for photographs","Street processions",1,"Ethical sanctuaries focus on rescue and rehabilitation, allowing visitors to feed and observe elephants without riding."],
+["The Gulf of Thailand islands (Koh Samui, Koh Phangan) are generally best visited between:","November to April (same as the Andaman coast)","February to October","Year-round identically","March to May only",1,"The Gulf of Thailand has an opposite weather pattern to the Andaman coast; its drier period is broadly February to October."],
+["What is the approximate total flight time from Johannesburg to Bangkok with a connection?","5 hours","8 hours","10 to 12 hours","14 hours",2,"Connections via Dubai, Doha, Kuala Lumpur or Singapore make the total journey approximately 10 to 12 hours."],
+["Thailand is best positioned for South African clients as:","Close and easy with no long flights","An exceptional value destination combining beach, culture, cities and food at reasonable prices","Only suitable for backpackers","Primarily a business travel destination",1,"Thailand offers outstanding value for money, diverse experiences and world-class infrastructure, making it very appealing to South Africans."],
+["When recommending health preparations for Thailand, consultants should mention:","No precautions are needed","Hepatitis A vaccination is recommended; malaria prophylaxis may apply to border or jungle regions","Typhoid is the only concern","No vaccinations exist for Thailand",1,"Hepatitis A vaccination is recommended for all Thailand visitors; malaria prophylaxis may be needed in specific rural border areas."]
+],
+eu:[
+["South African passport holders travelling to most European countries need:","No visa at all","A Schengen visa applied for in advance at the relevant embassy","A visa on arrival","Only a travel insurance certificate",1,"South Africans must apply for a Schengen visa before travel; it is not available on arrival."],
+["A standard Schengen visa permits South Africans to stay in the Schengen Area for a maximum of:","30 days","60 days","90 days in any 180-day period","6 continuous months",2,"The Schengen visa allows up to 90 days within any rolling 180-day period across all member countries."],
+["The United Kingdom is not part of the Schengen Area. South Africans need:","The Schengen visa, which also covers the UK","A UK Standard Visitor Visa applied separately","No visa for the UK","Only an airline ticket as proof",1,"A separate UK Standard Visitor Visa is required; the Schengen visa does not grant UK entry."],
+["The Schengen visa application should be submitted to which embassy?","Any Schengen country embassy","Germany, as the largest Schengen member","The embassy of the country where the longest stay is planned","The first country of entry only",2,"Schengen visas should be applied for at the embassy of the main destination, typically the country of the longest intended stay."],
+["What is the approximate direct flight time from Johannesburg to London?","7 hours","9 hours","11 hours","14 hours",2,"The direct Johannesburg to London flight takes approximately 11 hours."],
+["The Sagrada Familia basilica is located in which European city?","Madrid","Barcelona","Seville","Lisbon",1,"The Sagrada Familia, designed by Antoni Gaudi, is Barcelonas most iconic landmark and still under construction."],
+["For a first-time European visitor from South Africa, which itinerary is most commonly recommended?","Eastern Europe cities only","A highlights circuit covering London, Paris and Rome","Only Greek island beach holidays","Scandinavia in winter",1,"The London, Paris and Rome circuit is the classic first Europe trip, covering iconic landmarks with easy connections."],
+["The Eurail pass offers best value for clients who:","Are only visiting one city","Are making multiple train journeys across several European countries","Only travel by bus","Need airport transfers included",1,"Eurail passes are most economical when covering multiple countries with several long-distance train journeys."],
+["Many Schengen embassies require proof of what as part of the visa application?","A bank statement only","Travel insurance with minimum EUR 30,000 medical cover","A return flight receipt","An invitation letter",1,"Schengen visa applications typically require travel insurance covering emergency medical expenses of at least EUR 30,000."],
+["The Greek islands are best visited between:","November to March","April to October","January only","Year-round equally",1,"April to October is the Greek island season, with June to September offering the warmest, driest beach conditions."],
+["Croatia is a popular European destination best known for:","Alpine skiing","Its Adriatic coastline, Dubrovnik, Split and the Dalmatian islands","Industrial heritage tourism","Only wine tourism",1,"Croatias Adriatic coast, Dubrovnik old city walls, Split waterfront and island hopping are major tourism drawcards."],
+["Which form of transport is most recommended for getting around within European cities?","Renting a car","Taxis exclusively","Public transport (metro, tram, bus) and walking","Private transfers only",2,"European cities have excellent public transport; renting a car in most European city centres creates unnecessary complexity and cost."],
+["The Amalfi Coast is located in which country?","Greece","Spain","France","Italy",3,"The Amalfi Coast is a dramatically scenic stretch of the Campania coastline in southern Italy."],
+["What is the best time to visit Paris and Northern Europe to avoid the peak summer crowds?","December to February","July and August","March to May or September to October","Year-round identically",2,"Spring (March to May) and autumn (September to October) offer pleasant weather with significantly fewer tourists than peak summer."],
+["Prague, often called the City of a Hundred Spires, is the capital of:","Poland","Slovakia","Austria","Czech Republic (Czechia)",3,"Prague is the capital of Czechia and is one of Europes most beautifully preserved historic cities."]
+],
+us:[
+["South African visitors to the USA must obtain which document before travel?","A US tourist visa from the embassy","An ESTA (Electronic System for Travel Authorization)","No documentation needed","A US visa on arrival",1,"South Africans qualify for the Visa Waiver Program and must obtain an approved ESTA before departure."],
+["The ESTA allows South Africans to stay in the USA for a maximum of:","30 days","60 days","90 days","6 months",2,"The ESTA permits stays of up to 90 days per visit for tourism or business."],
+["The approximate flight time from Johannesburg to New York with one stop is:","10 hours","14 hours","15 to 17 hours","20 hours",2,"Most routings connect via a European or Middle Eastern hub, making the total journey approximately 15 to 17 hours."],
+["The ESTA costs approximately:","Free","USD 14","USD 50","USD 160",1,"The ESTA costs approximately USD 14, is valid for 2 years or until passport expiry and covers multiple trips."],
+["The Grand Canyon is located in which US state?","Utah","Nevada","Arizona","Colorado",2,"The Grand Canyon, one of the worlds great natural wonders, is in northern Arizona."],
+["Walt Disney World, the worlds most visited theme park resort, is located in:","Miami","Houston","Los Angeles","Orlando",3,"Walt Disney World Resort is situated in Orlando, Florida and welcomes millions of visitors annually."],
+["What driving document should South African clients carry for a US road trip alongside their SA licence?","A US driving licence","No additional document","International Driver Permit","Only a credit card for car hire",2,"An International Driver Permit (IDP) is recommended alongside the valid South African driving licence for car hire in the USA."],
+["Do South African clients transiting through a US airport need an ESTA?","No, transit does not require any document","Yes, even airside transit requires a valid ESTA or US visa","Only if staying overnight","Only if connecting to a non-US destination",1,"The USA requires a valid ESTA or visa even for airside transit without leaving the airport terminal."],
+["The Statue of Liberty in New York Harbor was a gift from which country?","England","Italy","France","Spain",2,"The Statue of Liberty was gifted by France and dedicated on 28 October 1886."],
+["Route 66 famously stretches from Chicago to which US city?","San Francisco","Miami","Los Angeles","Dallas",2,"Historic Route 66 runs approximately 3,940 km from Chicago, Illinois to Santa Monica in Los Angeles."],
+["For a client interested in both Hollywood culture and beach lifestyle, which US city is recommended?","New York","Miami","Los Angeles","San Diego",2,"Los Angeles combines Hollywood, beaches at Santa Monica and Malibu, theme parks and year-round sunshine."],
+["Hawaii is a US state located in which ocean?","Atlantic","Pacific","Indian","Caribbean",1,"Hawaii is a US state in the North Pacific Ocean, approximately 3,500 km from the US west coast."],
+["The main international gateway airport for New York City is:","LaGuardia Airport","Newark Liberty International","JFK International Airport","Teterboro Airport",2,"JFK (John F Kennedy International) is the primary airport for international arrivals to New York City."],
+["Which US city is known as Music City and the home of country music?","Austin","Memphis","Nashville","New Orleans",2,"Nashville, Tennessee is the global capital of country music and home to the Grand Ole Opry."],
+["A fly-drive holiday in the USA is best suited to clients who want:","To stay in one city","To cover multiple destinations at their own pace by rental car","Business travel","Fully guided group tours",1,"Fly-drive packages suit clients wanting the freedom to explore at their own pace across multiple US destinations."]
+],
+sk:[
+["The Three Valleys in France (the worlds largest ski area) connects:","Verbier, Zermatt and Saas-Fee","Courchevel, Meribel and Val Thorens","Chamonix, Morzine and Avoriaz","Tignes, Val d Isere and Les Arcs",1,"Les Trois Vallees links Courchevel, Meribel and Val Thorens with over 600 km of marked pistes."],
+["Which Swiss ski resort sits at the foot of the iconic Matterhorn?","Verbier","St Moritz","Davos","Zermatt",3,"Zermatt is world-famous for its car-free village and stunning Matterhorn backdrop in the Swiss Valais."],
+["The main European Alpine ski season typically runs from:","October to December","December to April","January and February only","November to January",1,"The main season runs December to April with peak conditions generally January to March."],
+["Ski in / ski out accommodation means:","Free ski lessons are included","Equipment is included in the rate","Guests can ski directly from their door to the pistes without a transfer","The property has an on-site ski shop",2,"Ski in/ski out properties offer direct slope access from the building, a premium feature in ski resorts."],
+["Courchevel 1850 in France is best described as:","A budget-friendly family resort","One of the worlds most glamorous and expensive ski destinations","The best resort for beginners","A snowboard-only park",1,"Courchevel 1850 is a byword for ski glamour, attracting celebrities and ultra-high-net-worth travellers."],
+["Apres-ski refers to:","Pre-ski warm-up exercises","Advanced ski technique","Social activities, drinks and entertainment enjoyed after skiing for the day","The last ski run of the afternoon",2,"Apres-ski (French for after skiing) is the social scene in resort bars and restaurants after the lifts close."],
+["In European ski resorts, the easiest (beginner) run colour is:","Blue","Green","Red","Black",1,"European resorts use green for the easiest runs, followed by blue, red and black for the most difficult."],
+["Travel insurance for a ski holiday must specifically include:","Standard cover only","No cover is needed in European resorts","Winter sports and ski cover, which standard travel insurance does not include","Medical cover only",2,"Standard travel insurance excludes skiing injuries; specific winter sports cover must be added to the policy."],
+["A catered ski chalet differs from a self-catered chalet in that:","There is no meaningful difference","A catered chalet has a resident host providing daily meals; self-catered means guests cook for themselves","Catered means breakfast only","Self-catered is always the more expensive option",1,"Catered chalets include a chalet host who provides breakfast, afternoon tea, canapés and dinner daily."],
+["Verbier in Switzerland is primarily suited to which skill level?","Complete beginners only","Young children learning to ski","Confident intermediate and advanced skiers","Snowboarders only",2,"Verbier is known for demanding off-piste terrain and is best suited to confident intermediate and expert skiers."],
+["For a first-time ski family from South Africa, the best resort type is:","The most challenging off-piste resort available","A purpose-built French resort with a proper ski school and beginner areas","A summer resort that also does some winter activities","A snowboard-only park",1,"Purpose-built French resorts like La Plagne, Les Gets or Morzine have purpose-designed nursery areas and reputable ski schools."],
+["The approximate flight time from Johannesburg to Geneva (main Alpine gateway) is:","7 hours","11 hours","14 hours","16 hours",1,"The direct flight from Johannesburg to Geneva takes approximately 11 hours."],
+["Off-piste skiing means skiing:","On specially marked advanced runs","On groomed, prepared slopes only","On ungroomed terrain outside the marked and patrolled piste network","Only during poor visibility",2,"Off-piste skiing takes place on natural ungroomed terrain beyond the prepared slopes and requires additional skill and safety awareness."],
+["Late February to March is popular for ski holidays because:","It is always the cheapest time","Early season snow is at its best","Accumulated snow depth is good and days are noticeably longer with more sunshine","Resorts are always less crowded",2,"Late season offers the best of both worlds: reliable deep snow built up over winter and increasingly sunny, longer spring days."],
+["Morzine in France is part of which large cross-border ski area?","The Three Valleys","Espace Killy","Portes du Soleil","Grand Massif",2,"Morzine is part of the Portes du Soleil, one of Europes largest ski areas spanning the French-Swiss border."]
+],
+cr:[
+["Royal Caribbean International is best described as:","A luxury small-ship cruise line","One of the worlds largest mass-market cruise lines","A river cruise specialist","A South Africa-based line",1,"Royal Caribbean is one of the worlds biggest cruise companies, known for innovative mega-ships."],
+["Standard cruise pricing typically includes:","Everything including all shore excursions","Accommodation, most meals and onboard entertainment; drinks, speciality dining and excursions are usually extra","The cabin only","Drinks and the cabin only",1,"Standard cruise fares bundle cabin, buffet and main restaurant dining, and onboard shows; drinks packages and excursions are charged separately."],
+["The difference between an inside and a balcony cabin is:","No meaningful difference","Inside cabins are larger","Inside cabins have no window or natural light; balcony cabins have a private outdoor terrace","Balcony cabins are located below the waterline",2,"Inside (interior) cabins have no windows; balcony staterooms have sliding glass doors opening onto a private outdoor space."],
+["The port of embarkation is:","The final port on the itinerary","Where passengers board the ship at the start of the voyage","The ships country of registration","The deepest port on the route",1,"The embarkation port is where the cruise begins; popular options for South Africans include Barcelona, Miami and Southampton."],
+["Shore excursions on a cruise are:","Walks on the ships outer deck","Organised tours and activities when the ship docks at a port","Swims from the stern of the ship","Transfers between ships",1,"Shore excursions are trips and activities at each port of call, bookable through the cruise line or independently."],
+["The Mediterranean cruise season broadly runs:","Year-round","January to March","April to October","December only",2,"Mediterranean cruises operate April to October with peak season June to September."],
+["Norwegian Cruise Line (NCL) pioneered which concept?","Formal black-tie dining every night","Adults-only ships exclusively","Freestyle Cruising with no fixed dining times or dress codes","River cruising",2,"NCL revolutionised cruising with Freestyle Cruising, allowing passengers to dine anywhere, anytime without formal requirements."],
+["A tender port is one where:","The weather is always calm","The ship docks directly","The ship anchors offshore and small boats ferry passengers ashore and back","Medical facilities are available ashore",2,"At tender ports the water is too shallow for the ship to dock; passengers are ferried to land by the ships own tender boats."],
+["On-Board Credit (OBC) is:","A credit card for use ashore","A cash refund after the cruise","A credit loaded onto the passenger shipboard account for onboard spending","A promotional discount on the cabin",2,"OBC is a credit available for use on drinks, speciality dining, spa treatments or shore excursions during the voyage."],
+["For a couple celebrating a milestone anniversary who want elegance and intimacy, the best recommendation is:","Carnival (party atmosphere)","MSC (family focused)","A luxury small-ship line such as Silversea or Seabourn","Norwegian (freestyle casual)",2,"Luxury small-ship lines carry under 600 guests, offer highly personalised service and are ideal for milestone occasions."],
+["A repositioning cruise offers good value because:","The ship has a new captain","The itinerary is shorter","The ship is moving between deployment regions seasonally, offering longer voyages at reduced one-way rates","A different entertainment team is onboard",2,"Repositioning cruises are priced below regular sailings because they are one-directional and operationally necessary for the cruise line."],
+["A cruise and stay package combines:","Permanent residency on a ship","A cruise with hotel nights pre or post-voyage at the departure or destination port","A stay in a cruise terminal hotel only","A cruise with unlimited port calls",1,"Cruise and stay packages are popular for South Africans who want to explore an embarkation city like Barcelona or Miami before or after sailing."],
+["For a family with young children, which cruise lines have the most comprehensive kids programmes?","Silversea and Seabourn","Cunard and Princess","MSC, Royal Caribbean and Norwegian","Azamara and Oceania",2,"MSC, Royal Caribbean and Norwegian are well known for extensive age-grouped childrens clubs and family-friendly cabin configurations."],
+["Port taxes on a cruise booking are:","A service charge added by the cruise line at their discretion","Government-imposed fees for using port facilities, passed directly to passengers","A voluntary tip for port staff","A tourist departure tax paid on return",1,"Port taxes and fees are mandatory government charges for using port facilities at each destination port of call."],
+["Celebrity Cruises is positioned in the market as:","A budget family cruise line","A river cruise specialist","A premium cruise line with a refined, design-led experience","The worlds largest cruise brand",2,"Celebrity Cruises offers a more sophisticated experience than mass-market lines, with elevated dining, design and service standards."]
+],
+lc:[
+["What is the industry best-practice maximum first response time for a live chat travel enquiry?","10 minutes","5 minutes","Under 60 seconds","30 minutes",2,"Responding within 60 seconds dramatically reduces the risk of the visitor leaving the site; longer waits see significant drop-off."],
+["How many live chat conversations is it best practice to handle simultaneously?","1 only","2 to 3","5 to 7","As many as possible",1,"Handling 2 to 3 simultaneously is optimal; beyond this, response quality and personalisation decline noticeably."],
+["When a live chat client finds the price higher than expected, the most effective response is:","Immediately offer a discount","Apologise and end the chat","Acknowledge the concern, highlight the value and explore what matters most to the client","Send them to a competitor",2,"A value-focused response that probes the clients priorities is more effective than reflexively discounting."],
+["What are canned responses and why are they useful?","Spam messages to avoid","Pre-written templates for common questions that improve speed and consistency","Computer-generated auto-replies only","Recorded voice messages",1,"Canned responses allow agents to answer common questions quickly and consistently while still personalising the reply."],
+["If a live chat query requires significant research time, the best approach is:","Ask the client to phone instead","Leave them waiting with no communication","Acknowledge the query, explain you are researching and give a time estimate","Send a generic brochure link",2,"Honest communication with a realistic timeframe prevents frustration and keeps the client engaged during a research pause."],
+["A professional close to a live chat conversation should always include:","Just closing the window","A summary of what was discussed, confirmed next steps and an offer to reconnect","Only a rating request","An automatic disconnect",1,"A proper close clarifies what was agreed, confirms the next step and leaves the client feeling well looked after."],
+["The most appropriate tone for travel live chat is:","Very formal and corporate only","Extremely casual with slang","Warm, helpful and conversational, adapting to the clients tone while remaining professional","Fully scripted throughout",2,"Live chat calls for a conversational, warm approach that mirrors the client while maintaining professional knowledge and standards."],
+["Proactive chat in a travel website context means:","Sending aggressive promotional messages","An automated invitation to chat triggered when a visitor meets certain conditions (such as 30 seconds on a destination page)","Sending bulk promotional messages","Bot-only responses throughout",1,"Proactive chat invites visitors at a relevant moment in their browsing, increasing the chance of converting passive interest into an active enquiry."],
+["When a client in live chat is clearly frustrated, what should you do first?","End the chat immediately","Match their tone","Transfer immediately without acknowledgment","Acknowledge their feelings sincerely before attempting to resolve the issue",3,"Clients need to feel heard before they are ready to accept a solution; empathy before problem-solving is the key principle."],
+["Once a client in live chat clearly indicates intent to book, you should:","Keep chatting about other destination options","Ask if they want to think about it more","Transfer to a manager","Move efficiently to confirm details and lock in the booking while enthusiasm is at its peak",3,"Buying intent should be acted on promptly; allowing momentum to fade is one of the most common conversion mistakes."],
+["The best way to ask about a clients budget in live chat is:","What is your budget? (blunt)","Can you afford a 5-star hotel?","Do not ask about budget at all","To help tailor the best options, do you have a rough budget range in mind?",3,"A value-framed, soft approach to budget is far less intrusive and more likely to receive an honest, useful response."],
+["When a live chat visitor says they are just browsing, the best approach is:","End the chat","Send a full price list","Ask for their email address immediately","Ask where they dream of travelling next to start a genuine conversation",3,"Open-ended aspirational questions engage casual browsers and can convert them into active enquiries without any pressure."],
+["What should be gathered early in a live chat travel enquiry?","Credit card details","Destination, travel dates, number of travellers and approximate budget","Home address and employer details","Their name only",1,"Gathering key trip details early enables personalised, relevant recommendations rather than generic responses."],
+["After a dropped internet connection during a live chat, what is the professional response?","Do nothing and wait","Apologise in a future chat session only","Proactively send a follow-up email acknowledging the interruption and continuing the conversation","Call an unrelated phone number",2,"Reaching out by email after a dropped connection shows professionalism and prevents the client feeling abandoned."],
+["What is first contact resolution in the live chat context?","Closing the chat window immediately","The first chat of the working day","Resolving the clients query fully in the initial interaction without needing a follow-up","A promotional response code",2,"First contact resolution means the client leaves the chat with their need fully met, which strongly correlates with satisfaction scores."]
+],
+em:[
+["The single most important element of a travel sales email is:","A long, detailed itinerary","Formal corporate language","A compelling subject line that motivates the recipient to open the email","Company legal disclaimers",2,"The subject line determines whether an email is ever opened; even a perfect email is wasted if it is never read."],
+["The recommended length for a travel proposal email is:","As long as possible to show thoroughness","Exactly 500 words","Short enough to read on a mobile, focused on key highlights with an offer to share more detail","One paragraph only",2,"Concise, mobile-friendly emails with a single clear call to action consistently outperform long, detailed proposals."],
+["True personalisation in a travel email means:","Using the clients first name only","Adding a logo","Tailoring the content and recommendations to the clients specific travel history, stated preferences and current enquiry","Using colourful template designs",2,"Meaningful personalisation references the clients past travel, preferences and enquiry context rather than just inserting a name."],
+["The recommended follow-up timing after sending a travel quote with no response is:","Immediately upon sending","After 2 weeks","After 2 to 3 business days","Never; wait for the client to respond",2,"Following up after 2 to 3 business days keeps the opportunity alive without feeling intrusive."],
+["The most effective subject line format for a Mauritius proposal email is:","Travel Offer August","Important message from Thompsons For Travel","Hi","Your Mauritius Escape [Month of Departure]",3,"Destination-specific, personalised and evocative subject lines significantly outperform generic alternatives in open rates."],
+["A travel quote email should always include:","Just the price","Price, inclusions, exclusions, validity date and a personal recommendation note","A full terms and conditions document only","The itinerary PDF only",1,"A complete quote communicates what is included, what is excluded, when the price expires and a personalised reason to proceed."],
+["The best time of the week to send a sales follow-up email for highest open rates is:","Friday afternoon","Sunday evening","Monday early morning","Tuesday to Thursday morning",3,"Research consistently shows Tuesday to Thursday mornings achieve the highest B2C email open rates."],
+["A call to action (CTA) in a travel email is:","A company slogan","A legal notice","A request for the client to phone the office","A clear instruction on the readers next step, such as Reply to confirm your dates",3,"Every effective sales email should contain one clear, singular call to action guiding the reader toward the desired next step."],
+["Why should a price validity date always be included in a travel quote email?","It is a legal requirement only","It creates urgency, manages expectations and protects the consultant if airfares or rates change","It slows down the process","It is not important",1,"A validity date creates a natural reason to act and protects the consultant from being held to a price that is no longer achievable."],
+["When a client replies to a quote with a price objection, the most effective response is:","Immediately send a lower quote","Acknowledge their feedback, ask what budget they had in mind and explore which aspects of the trip matter most","Ignore the objection","Apologise and end the email thread",1,"Understanding the specific nature of the objection before adjusting the proposal leads to a better outcome than an immediate discount."],
+["A drip email campaign in a travel context is:","Emails about waterfall destinations","A single email with multiple discount tiers","A series of relevant emails delivered over time to nurture a lead from interest through to booking","Emails sent only in rainy weather",2,"A drip sequence guides prospects progressively from inspiration to enquiry to booking through timed, relevant content."],
+["When emailing a repeat client, the most effective opening references:","The companys founding date","Their previous travel experience booked through you","The latest newsletter","A cold generic introduction",1,"Referencing a clients previous trip signals genuine knowledge of them as an individual, immediately building rapport and relevance."],
+["What is the preview text in a sales email?","The subject line","An image caption","The footer contact details","The short text visible in the inbox below the subject line before the email is opened",3,"Preview text gives a second opportunity to encourage opens after the subject line and should complement it with additional context."],
+["South Africas POPIA legislation is relevant to travel email marketing because:","It requires emails to be in Afrikaans","It governs personal data protection; unsubscribe requests must be honoured immediately","It only applies to international companies","It requires all emails to include a price",1,"POPIA requires responsible handling of personal information; failing to honour unsubscribe requests can result in regulatory action."],
+["What makes a travel proposal email stand out above competitors?","Always having the lowest price","Personalisation, evocative destination narrative, quality imagery and clear reasons to book now","Being the longest email","Using company letterhead only",1,"Personalised, experience-focused proposals consistently outperform generic price-list-style emails in conversion."]
+],
+ts:[
+["The purpose of a needs analysis at the start of a travel sales call is:","To check the clients financial status","To understand their travel desires, constraints and expectations so recommendations are relevant","To deliver a product script","To check if they have booked with a competitor",1,"A thorough needs analysis ensures all subsequent recommendations are tailored, significantly improving conversion likelihood."],
+["The first thing to do when making or receiving a travel sales call is:","Quote the cheapest price immediately","Ask for credit card details","Start reading from a brochure","Introduce yourself and your company, confirm availability to speak and invite the client to share their plans",3,"A proper introduction and checking availability to speak shows respect for the clients time and sets a professional tone."],
+["When a client says I need to think about it, the most effective response is:","OK goodbye","Immediately offer a large discount","Tell them prices increase tomorrow (if untrue)","Ask what specific aspect they need to consider, address any concerns and propose a specific callback time",3,"Identifying the real concern behind this phrase and committing to a follow-up time is far more effective than leaving without a clear next step."],
+["Active listening in a tele-sales context means:","Just staying silent while the client talks","Taking notes only","Waiting for your turn to speak","Fully concentrating, asking clarifying questions and reflecting back to confirm understanding",3,"Active listening builds trust, ensures the client feels heard and provides the information needed for relevant recommendations."],
+["The feel, felt, found technique in tele-sales is used to:","Close a booking quickly","Transfer a call to a manager","End an unsuccessful call","Handle objections with empathy by normalising the clients concern and offering a positive reframe",3,"The technique acknowledges the clients concern, normalises it and then redirects toward a positive experience others have found."],
+["The most effective assumptive closing question for a travel sales call is:","Do you want to book or not?","Are you sure you want to spend that much?","Is that your final answer?","Shall I hold those dates while we confirm the details?",3,"An assumptive close progresses naturally as if agreement has been reached, reducing pressure while moving toward confirmation."],
+["When a client mentions finding a cheaper price online, the most strategic response is:","Immediately match the price","Give up on the sale","Tell them the online price must be wrong","Ask them to read out exactly what the online price includes, then compare like-for-like",3,"Understanding exactly what the competitor price includes often reveals meaningful differences that justify your offer."],
+["Upselling in travel tele-sales means:","Selling at higher volume","Recommending a complementary add-on","Transferring the call to a senior consultant","Encouraging the client to upgrade to a higher category product, such as from a 4-star to a 5-star hotel",3,"Upselling increases both revenue and client satisfaction by offering a meaningful enhancement to what the client is already interested in."],
+["Cross-selling in travel tele-sales means:","Selling to a different department","Transferring calls to another agent","Selling competing products","Recommending complementary add-ons such as travel insurance, car hire, excursions or transfers alongside the main booking",3,"Cross-selling enhances the clients overall travel experience and represents genuine additional value when done appropriately."],
+["Conversion rates for outbound calls after an online enquiry peak when contact is made:","Within 24 hours","Within a week","Only after an email has been sent first","Within 5 minutes to 1 hour of the enquiry being submitted",3,"Research consistently shows conversion rates are highest when calls are made within minutes of enquiry submission while interest is at its peak."],
+["After a successful booking call, the consultant should:","End the call immediately","Ask for referrals immediately","Transfer to accounts only","Thank the client, confirm all key details verbally, explain what happens next and send a written confirmation promptly",3,"A warm, organised close with confirmed next steps and a prompt written summary reduces cancellations and builds confidence."],
+["Silence on a call after presenting the price should be handled by:","Immediately filling the silence with talking","Lowering the price immediately","Assuming lack of interest and wrapping up","Waiting comfortably for the client to respond; silence often signals consideration",3,"Filling silence nervously after presenting a price weakens the consultants negotiating position; patient silence is a professional skill."],
+["When a client is upset about a past booking issue, what should you do first?","Defend the company immediately","Argue the facts of the situation","Transfer immediately","Allow them to express their frustration fully, then empathise sincerely before moving to resolution",3,"Empathy before problem-solving is essential; clients must feel genuinely heard before they are receptive to any solution offered."],
+["A callback promise must always be kept because:","It is a legal requirement","It is a promise to call if prices drop","Broken callback promises signal unreliability to a client about to trust you with a significant holiday booking","It is only relevant if the client insists",2,"A missed callback communicates to the client that you cannot be trusted with small commitments, let alone large financial ones."],
+["The most important thing to agree on at the end of a call without an immediate booking is:","Nothing specific; just say goodbye","Ask them to call back when they are ready","Send only a generic follow-up email","A specific next action with a committed date and time: I will send the proposal today and call you Thursday at 10am, does that work?",3,"A specific, mutually agreed next step with a committed time dramatically increases the likelihood of a follow-up conversation occurring."]
+]
+};
+
+// ============================================================
+// GAME STATE
+// ============================================================
+const S={
+  scr:'home',name:'',cat:null,qs:[],qi:0,score:0,
+  streak:0,tLeft:25,picked:null,showFb:false,
+  answers:[],period:'monthly',timer:null,fbto:null
+};
+
+const CATS=[
+  {id:'za',name:'South Africa',emoji:'🇿🇦',type:'dest'},
+  {id:'mu',name:'Mauritius',emoji:'🏝️',type:'dest'},
+  {id:'zan',name:'Zanzibar',emoji:'🌴',type:'dest'},
+  {id:'bal',name:'Bali',emoji:'🌺',type:'dest'},
+  {id:'th',name:'Thailand',emoji:'🐘',type:'dest'},
+  {id:'eu',name:'Europe',emoji:'🗺️',type:'dest'},
+  {id:'us',name:'USA',emoji:'🗽',type:'dest'},
+  {id:'sk',name:'Skiing',emoji:'⛷️',type:'dest'},
+  {id:'cr',name:'Cruising',emoji:'🚢',type:'dest'},
+  {id:'lc',name:'Live Chat',emoji:'💬',type:'skill'},
+  {id:'em',name:'Email Sales',emoji:'📧',type:'skill'},
+  {id:'ts',name:'Tele Sales',emoji:'📞',type:'skill'}
+];
+
+const JBID='6a1e8c75f5f4af5e29abe6b2';
+const JBKEY='$2a$10$.gdk/eGQNO16FEr4Fv32r.7hS1FS6A4Y0BtJGIfNpmxDXdb3HNPLG';
+const JBURL='https://api.jsonbin.io/v3/b/'+JBID;
+function getWeek(d){const u=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const day=u.getUTCDay()||7;u.setUTCDate(u.getUTCDate()+4-day);const ys=new Date(Date.UTC(u.getUTCFullYear(),0,1));return Math.ceil((((u-ys)/86400000)+1)/7);}
+function lbKey(){const n=new Date();return S.period==='monthly'?`tft_lb_${n.getFullYear()}_${n.getMonth()+1}`:`tft_lb_w_${n.getFullYear()}_${getWeek(n)}`;}
+async function fetchAll(){try{const r=await fetch(JBURL+'/latest',{headers:{'X-Master-Key':JBKEY}});const d=await r.json();return d.record||{scores:{}};}catch{return{scores:{}};}}
+async function getLb(){const data=await fetchAll();return(data.scores||{})[lbKey()]||[];}
+async function saveLb(name,score,cat){try{const data=await fetchAll();const sc=data.scores||{};const key=lbKey();let b=sc[key]||[];const i=b.findIndex(e=>e.name.toLowerCase()===name.toLowerCase()&&e.cat===cat);const ent={name,score,cat,date:new Date().toISOString()};if(i>=0){if(b[i].score<score)b[i]=ent;}else b.push(ent);b.sort((a,z)=>z.score-a.score);sc[key]=b.slice(0,30);await fetch(JBURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JBKEY},body:JSON.stringify({scores:sc})});}catch(e){console.error('LB save error:',e);}}
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function h(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function app(){return document.getElementById('app');}
+
+function hdr(back){return `<div class="hdr"><div class="logo">THOMPSONS <b>FOR TRAVEL</b></div>${back?`<button class="bk" onclick="${back}">&#8592;</button>`:''}</div>`;}
+function pbtn(lbl,fn){return `<button class="pb" onclick="${fn}">${lbl}</button>`;}
+function sbtn(lbl,fn){return `<button class="sb" onclick="${fn}">${lbl}</button>`;}
+
+// ============================================================
+// SCREENS
+// ============================================================
+function renderHome(){
+  app().innerHTML=`${hdr()}<div class="card" style="text-align:center;margin-top:32px"><div style="font-size:56px;margin-bottom:8px">&#x2708;&#xFE0F;</div><h1>Passport Pro</h1><p style="color:#00AEEF;font-weight:800;font-size:11px;letter-spacing:2px;margin:0 0 12px">TRAVEL KNOWLEDGE CHALLENGE</p><p class="sub">Test your destination knowledge and sales skills. Earn points, build streaks and compete with your colleagues!</p>${pbtn('&#127919; Start Playing','goPlay()')}${sbtn('&#127942; Leaderboard','goLb()')}</div>`;
+}
+
+function renderName(){
+  app().innerHTML=`${hdr('goHome()')}<div class="card"><h2 style="margin-top:0">What&#39;s your name?</h2><p style="color:#666;font-size:14px;margin:4px 0 0">Your name appears on the leaderboard</p><input type="text" id="ni" placeholder="Enter your name" value="${h(S.name)}" onkeydown="if(event.key==='Enter')setName()"><button class="pb" onclick="setName()">Let&#39;s Go &#8594;</button></div>`;
+  setTimeout(()=>document.getElementById('ni')&&document.getElementById('ni').focus(),100);
+}
+
+function renderCategories(){
+  const dest=CATS.filter(c=>c.type==='dest');
+  const skill=CATS.filter(c=>c.type==='skill');
+  const cb=c=>`<button class="cb" onclick="pickCat('${c.id}')"><span style="font-size:22px;display:block;margin-bottom:4px">${c.emoji}</span><span style="font-size:11px;font-weight:700;color:#0A52A0;line-height:1.2">${c.name}</span></button>`;
+  app().innerHTML=`${hdr('goHome()')}<div class="inner"><h2 style="margin-top:12px">Hi ${h(S.name)}! &#128075;</h2><p class="sub" style="margin-bottom:20px">Pick a category to start your round</p><p class="sl">&#127757; DESTINATIONS</p><div class="g3">${dest.map(cb).join('')}</div><p class="sl">&#128188; SALES SKILLS</p><div class="g3">${skill.map(cb).join('')}</div></div>`;
+}
+
+function renderQuiz(){
+  const q=S.qs[S.qi];
+  const labs=['A','B','C','D'];
+  const mult=S.streak>=5?2:S.streak>=3?1.5:1;
+  const tPct=(S.tLeft/25)*100;
+  const tCol=S.tLeft>10?'#00AEEF':S.tLeft>5?'#FFA500':'#FF4444';
+  app().innerHTML=`${hdr()}
+<div class="inner">
+  <div class="sr">
+    <span style="color:#777;font-size:13px;font-weight:600">Q${S.qi+1} / ${S.qs.length}</span>
+    <span style="color:#0A52A0;font-weight:800;font-size:16px" id="sc">&#11088; ${S.score.toLocaleString()}</span>
+    ${S.streak>=3?`<span class="stk">&#128293; &times;${mult}</span>`:''}
+  </div>
+  <div class="pgb"><div style="width:${(S.qi/S.qs.length)*100}%"></div></div>
+  <div class="tmb"><div id="tw" style="width:${tPct}%;background:${tCol}"></div></div>
+  <div class="qb"><p class="qt">${h(q[0])}</p></div>
+  <div class="os">${[0,1,2,3].map(i=>`<button class="op" id="op${i}" onclick="handlePick(${i})"><span class="ol">${labs[i]}</span>${h(q[i+1])}</button>`).join('')}</div>
+  <div id="fb"></div>
+</div>`;
+}
+
+function renderResults(){
+  const ok=S.answers.filter(a=>a.ok).length;
+  const pct=Math.round((ok/S.qs.length)*100);
+  const medal=pct>=80?'&#127942;':pct>=60?'&#127775;':'&#128218;';
+  const msg=pct>=80?'Outstanding!':pct>=60?'Good effort!':'Keep studying!';
+  app().innerHTML=`${hdr()}
+<div class="inner">
+  <div class="rb">
+    <div style="font-size:48px;margin-bottom:8px">${medal}</div>
+    <h2 style="color:#fff;font-size:26px;margin:0 0 4px">${S.score.toLocaleString()} pts</h2>
+    <p style="color:#00AEEF;font-weight:700;margin:0 0 6px">${ok}/${S.qs.length} correct (${pct}%) &mdash; ${msg}</p>
+    <p style="color:rgba(255,255,255,.7);font-size:13px;margin:0">${S.cat.emoji} ${h(S.cat.name)}</p>
+  </div>
+  <div style="background:#fff;border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 12px rgba(10,82,160,.08)">
+    <p style="color:#0A52A0;font-weight:800;font-size:11px;letter-spacing:2px;margin:0 0 12px">QUESTION REVIEW</p>
+    <div class="rv">${S.answers.map(a=>`<div class="rvi"><p style="font-size:13px;font-weight:600;margin:0 0 3px">${a.ok?'&#9989;':'&#10060;'} ${h(a.q)}</p>${!a.ok?`<p style="font-size:12px;color:#999;margin:0">Correct: ${h(a.ca)}</p>`:''}</div>`).join('')}</div>
+  </div>
+  ${pbtn('&#127919; Play Again','goCategories()')}
+  ${sbtn('&#127942; View Leaderboard','goLb()')}
+</div>`;
+}
+
+async function renderLeaderboard(){
+  app().innerHTML=`${hdr('goHome()')}
+<div class="inner" style="padding-top:16px">
+  <div style="text-align:center;padding:48px 20px;color:#888"><div style="font-size:40px;margin-bottom:12px">&#9203;</div><p style="font-size:14px">Loading scores...</p></div>
+</div>`;
+  const board=await getLb();
+  app().innerHTML=`${hdr('goHome()')}
+<div class="inner">
+  <h2 style="margin-top:12px">&#127942; Leaderboard</h2>
+  <div class="lt">
+    <button class="ltb ${S.period==='monthly'?'on':'off'}" onclick="setPeriod('monthly')">Monthly</button>
+    <button class="ltb ${S.period==='weekly'?'on':'off'}" onclick="setPeriod('weekly')">Weekly</button>
+  </div>
+  ${board.length===0
+    ?`<div style="text-align:center;padding:48px 20px;color:#bbb"><div style="font-size:48px;margin-bottom:12px">&#127757;</div><p style="font-size:15px">No scores yet &mdash; be the first to play!</p></div>`
+    :`<div class="ll">${board.slice(0,20).map((e,i)=>`<div class="lr${e.name===S.name?' me':''}"><div class="lrk" style="background:${i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'#F0F0F0'};color:${i<3?'#fff':'#999'}">${i+1}</div><div style="flex:1;min-width:0"><p style="margin:0;font-weight:700;font-size:14px;color:#0A52A0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h(e.name)}${e.name===S.name?' (you)':''}</p><p style="margin:0;font-size:11px;color:#aaa">${h(e.cat)}</p></div><span style="font-weight:800;color:#0A52A0;font-size:16px;margin-left:8px">${e.score.toLocaleString()}</span></div>`).join('')}</div>`}
+  ${pbtn('&#127919; Play Now','goPlay()')}
+  <p class="note">&#127758; Scores are shared across all players in real time!</p>
+</div>`;
+}
+
+// ============================================================
+// GAME LOGIC
+// ============================================================
+function stopTimer(){clearInterval(S.timer);clearTimeout(S.fbto);}
+
+function startTimer(){
+  S.tLeft=25;stopTimer();
+  S.timer=setInterval(()=>{
+    S.tLeft--;
+    const tw=document.getElementById('tw');
+    if(tw){const p=(S.tLeft/25)*100;const c=S.tLeft>10?'#00AEEF':S.tLeft>5?'#FFA500':'#FF4444';tw.style.width=p+'%';tw.style.background=c;}
+    if(S.tLeft<=0){stopTimer();handleTimeout();}
+  },1000);
+}
+
+function handleTimeout(){
+  if(S.showFb)return;
+  const q=S.qs[S.qi];
+  S.picked=-1;S.showFb=true;S.streak=0;
+  S.answers.push({q:q[0],ok:false,pts:0,ua:'No answer',ca:q[q[5]+1],ex:q[6]});
+  showFb(false,'Time\'s up!',q[6]);
+  [0,1,2,3].forEach(i=>{const el=document.getElementById('op'+i);if(el){el.disabled=true;if(i===q[5])el.classList.add('ok');}});
+  S.fbto=setTimeout(advance,1800);
+}
+
+function handlePick(idx){
+  if(S.picked!==null||S.showFb)return;
+  stopTimer();
+  const q=S.qs[S.qi];
+  const ok=idx===q[5];
+  const ns=ok?S.streak+1:0;
+  const mult=ns>=5?2:ns>=3?1.5:1;
+  const pts=ok?Math.floor((100+Math.floor((S.tLeft/25)*50))*mult):0;
+  S.picked=idx;S.showFb=true;S.streak=ns;
+  if(ok)S.score+=pts;
+  S.answers.push({q:q[0],ok,pts,ua:q[idx+1],ca:q[q[5]+1],ex:q[6]});
+  [0,1,2,3].forEach(i=>{const el=document.getElementById('op'+i);if(el){el.disabled=true;if(i===q[5])el.classList.add('ok');else if(i===idx&&!ok)el.classList.add('ng');}});
+  const sc=document.getElementById('sc');if(sc)sc.textContent='⭐ '+S.score.toLocaleString();
+  showFb(ok,ok?'Correct!':'Not quite.',q[6]);
+  S.fbto=setTimeout(advance,1800);
+}
+
+function showFb(ok,label,expl){
+  const el=document.getElementById('fb');
+  if(el)el.innerHTML=`<div class="fbx ${ok?'fok':'fng'}"><strong>${ok?'&#9989;':'&#10060;'} ${label}</strong> ${h(expl)}</div>`;
+}
+
+function advance(){
+  S.showFb=false;S.picked=null;
+  const next=S.qi+1;
+  if(next>=S.qs.length){endRound();}
+  else{S.qi=next;renderQuiz();startTimer();}
+}
+
+function endRound(){
+  saveLb(S.name,S.score,S.cat.name);
+  S.scr='results';renderResults();
+}
+
+function startQuiz(cat){
+  S.cat=cat;
+  const bank=QB[cat.id]||[];
+  S.qs=shuffle(bank).slice(0,Math.min(10,bank.length));
+  S.qi=0;S.score=0;S.streak=0;S.answers=[];S.picked=null;S.showFb=false;
+  S.scr='quiz';renderQuiz();startTimer();
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function goHome(){stopTimer();S.scr='home';renderHome();}
+function goPlay(){S.scr=S.name?'categories':'name';S.name?renderCategories():renderName();}
+function goCategories(){S.scr='categories';renderCategories();}
+function goLb(){S.scr='leaderboard';renderLeaderboard();}
+function setName(){const v=document.getElementById('ni')?.value?.trim();if(v){S.name=v;goCategories();}}
+function pickCat(id){const c=CATS.find(x=>x.id===id);if(c)startQuiz(c);}
+function setPeriod(p){S.period=p;renderLeaderboard();}
+
+// ============================================================
+// INIT
+// ============================================================
+renderHome();
+</script>
+</body>
+</html>
