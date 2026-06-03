@@ -393,7 +393,8 @@ const CATS=[
 {id:'lc',name:'Live Chat',emoji:'💬',type:'skill'},
 {id:'em',name:'Email Sales',emoji:'📧',type:'skill'},
 {id:'ts',name:'Tele Sales',emoji:'📞',type:'skill'},
-{id:'sus',name:'Sustainability',emoji:'🌱',type:'learn'}
+{id:'sus',name:'Sustainability',emoji:'🌱',type:'learn'},
+{id:'culture',name:'Our Culture',emoji:'🧭',type:'learn'}
 ];
 
 const JBID='6a1e8c75f5f4af5e29abe6b2';
@@ -551,6 +552,10 @@ function endRound(){
 function startQuiz(cat){
   S.cat=cat;
   const bank=QB[cat.id]||[];
+  if(!bank.length){
+    app().innerHTML=`${hdr('goCategories()')}<div class="card" style="text-align:center"><div style="font-size:48px;margin-bottom:12px">&#9888;&#65039;</div><h2 style="margin-top:0">Questions not found</h2><p style="color:#666;font-size:14px;margin-bottom:20px">The question bank for <strong>${h(cat.name)}</strong> could not be loaded. Please re-copy the latest code to GitHub.</p><button class="pb" onclick="goCategories()">&#8592; Back to Categories</button></div>`;
+    return;
+  }
   S.qs=shuffle(bank).slice(0,Math.min(10,bank.length));
   S.qi=0;S.score=0;S.streak=0;S.answers=[];S.picked=null;S.showFb=false;
   S.scr='quiz';renderQuiz();startTimer();
