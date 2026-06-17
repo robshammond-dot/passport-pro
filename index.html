@@ -762,6 +762,14 @@ async function saveLb(name,score,cat,answers){try{const data=await fetchAll();co
 
 // ── UTILITIES ──────────────────────────────────────────────
 function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function shuffleOptions(q){
+  const opts=[q[1],q[2],q[3],q[4]];
+  const idxs=[0,1,2,3];
+  for(let i=idxs.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[idxs[i],idxs[j]]=[idxs[j],idxs[i]];}
+  const newOpts=idxs.map(i=>opts[i]);
+  const newCorrect=idxs.indexOf(q[5]);
+  return [q[0],newOpts[0],newOpts[1],newOpts[2],newOpts[3],newCorrect,q[6]];
+}
 function h(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function app(){return document.getElementById('app');}
 function hdr(back){return `<div class="hdr"><div class="logo">THOMPSONS <b>FOR TRAVEL</b></div>${back?`<button class="bk" onclick="${back}">&#8592;</button>`:''}</div>`;}
@@ -914,7 +922,7 @@ function startQuiz(cat){
   const avoid=S.lastUsed[cat.id]||[];
   let pool=bank.filter(q=>!avoid.includes(q[0]));
   if(pool.length<QN)pool=bank;
-  S.qs=shuffle(pool).slice(0,Math.min(QN,pool.length));
+  S.qs=shuffle(pool).slice(0,Math.min(QN,pool.length)).map(shuffleOptions);
   S.lastUsed[cat.id]=S.qs.map(q=>q[0]);
   S.qi=0;S.score=0;S.streak=0;S.answers=[];S.picked=null;S.showFb=false;
   S.scr='quiz';renderQuiz();startTimer();
