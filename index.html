@@ -66,6 +66,24 @@ h2{color:#0A52A0;margin:12px 0 4px}
 .who{display:inline-block;background:#E4F6FE;color:#0A52A0;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:700;margin:0 0 16px}
 .lo{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.45);color:#fff;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
 .lo:hover{background:rgba(255,255,255,.22)}
+.okb{background:#E6F9ED;border-left:4px solid #28A745;color:#155724;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.5;margin:0 0 14px}
+.svst{border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.5;margin:0 0 14px;text-align:center}
+.svw{background:#fff;color:#5B6B7C}.svok{background:#E6F9ED;color:#155724}.svno{background:#FFF8E6;color:#6b4e00;border-left:4px solid #FFA500;text-align:left}
+.mrow{gap:10px;flex-wrap:wrap}
+.mbs{display:flex;gap:6px;flex-shrink:0}
+.mb{background:#fff;color:#0A52A0;border:2px solid #0A52A0;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.mb:hover{background:#EDF5FF}
+.mb.soft{color:#A94442;border-color:#E3B5B3}.mb.soft:hover{background:#FDF3F2}
+.sb.warn{border-color:#E3B5B3;color:#A94442}
+.pb.warnp{background:#A94442}.pb.warnp:hover{background:#93393a}
+.pb[disabled]{opacity:.6;cursor:default}
+.mnav .ltb{font-size:13px;padding:10px 4px}
+.cbx{background:#E4F6FE;color:#073963;border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.5;margin:10px 0 4px}
+.bl{margin:14px 0 6px 18px;color:#444;font-size:14px;line-height:1.6}
+.bl li{margin-bottom:4px}
+.help{margin-top:26px;background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 2px 12px rgba(10,82,160,.08)}
+.help summary{cursor:pointer;color:#0A52A0;font-weight:800;font-size:14px}
+.help p{font-size:13px;color:#444;line-height:1.6;margin-top:12px}
 .lnk{background:none;border:none;color:#5B6B7C;font-size:12px;text-decoration:underline;cursor:pointer;font-family:inherit;margin-top:14px}
 </style>
 </head>
@@ -1291,7 +1309,8 @@ const JBID='6a1e8c75f5f4af5e29abe6b2';
 const JBKEY='$2a$10$.gdk/eGQNO16FEr4Fv32r.7hS1FS6A4Y0BtJGIfNpmxDXdb3HNPLG';
 const JBURL='https://api.jsonbin.io/v3/b/'+JBID;
 const MANAGER_PASS='thompsons2026';
-// Team sign-in password shared with consultants. To change it, edit the text between the quotes.
+// Starting team sign-in password. Once a manager changes the password in Manager Tools > Team password,
+// that one is used instead and this line is only a fallback.
 const TEAM_CODE='Train!ng@T4TJNB2026';
 const USER_KEY='tft_pp_user';
 
@@ -1299,37 +1318,82 @@ function getWeek(d){const u=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.get
 function monthKey(){const n=new Date();return `tft_lb_${n.getFullYear()}_${n.getMonth()+1}`;}
 function weekKey(){const n=new Date();return `tft_lb_w_${n.getFullYear()}_${getWeek(n)}`;}
 function lbKey(){return S.period==='monthly'?monthKey():weekKey();}
-function getPlayerId(){const u=getUser();if(u)return 'u:'+(u.first+' '+u.last).toLowerCase().replace(/\s+/g,' ').trim();try{let pid=localStorage.getItem('tft_pp_pid');if(!pid){pid=(crypto.randomUUID?crypto.randomUUID():'p'+Date.now()+Math.random().toString(36).slice(2));localStorage.setItem('tft_pp_pid',pid);}return pid;}catch{return 'p'+Date.now()+Math.random().toString(36).slice(2);}}
-async function fetchAll(){try{const r=await fetch(JBURL+'/latest',{headers:{'X-Master-Key':JBKEY}});const d=await r.json();return d.record||{scores:{}};}catch{return{scores:{}};}}
-async function getLb(){const data=await fetchAll();return(data.scores||{})[lbKey()]||[];}
-async function saveLb(name,score,cat,answers){
-  const pid=getPlayerId();
+function normPid(first,last){return 'u:'+(first+' '+last).toLowerCase().replace(/\s+/g,' ').trim();}
+function getPlayerId(){const u=getUser();if(u)return normPid(u.first,u.last);try{let pid=localStorage.getItem('tft_pp_pid');if(!pid){pid=(crypto.randomUUID?crypto.randomUUID():'p'+Date.now()+Math.random().toString(36).slice(2));localStorage.setItem('tft_pp_pid',pid);}return pid;}catch(e){return 'p'+Date.now()+Math.random().toString(36).slice(2);}}
+// One "person" on the leaderboard. Signed-in players are grouped by their full name.
+// Older scores saved before sign-in existed are grouped by the name that was typed.
+function groupKey(e){return(e&&e.pid&&String(e.pid).indexOf('u:')===0)?e.pid:'n:'+String((e&&e.name)||'').toLowerCase().replace(/\s+/g,' ').trim();}
+function tidyRec(rec){
+  if(!rec||typeof rec!=='object'||Array.isArray(rec))throw new Error('Unexpected leaderboard data');
+  if(!rec.scores||typeof rec.scores!=='object')rec.scores={};
+  if(!rec.removed||typeof rec.removed!=='object')rec.removed={};
+  if(!rec.renamed||typeof rec.renamed!=='object')rec.renamed={};
+  return rec;
+}
+// strict=true is used before every save. If the scores cannot be read (poor connection, service busy),
+// nothing is written, so a bad connection can never wipe the leaderboard.
+async function fetchAll(strict){
+  try{
+    const r=await fetch(JBURL+'/latest',{headers:{'X-Master-Key':JBKEY},cache:'no-store'});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    if(!d||!('record' in d))throw new Error('No record in response');
+    return tidyRec(d.record);
+  }catch(e){
+    if(strict)throw e;
+    return{scores:{},removed:{},renamed:{},_failed:true};
+  }
+}
+// Writes the whole record back, keeping removed players, renames and the team password.
+async function putAll(rec){
+  const body={};Object.keys(rec).forEach(k=>{if(k!=='_failed')body[k]=rec[k];});
+  const res=await fetch(JBURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JBKEY},body:JSON.stringify(body)});
+  if(!res.ok)throw new Error('HTTP '+res.status);
+}
+function visible(rec,list){return(list||[]).filter(e=>!rec.removed[groupKey(e)]);}
+function purgeRemoved(rec){Object.keys(rec.scores).forEach(k=>{rec.scores[k]=visible(rec,rec.scores[k]);});}
+function mergeInto(board,ent){const g=groupKey(ent);const i=board.findIndex(e=>groupKey(e)===g&&e.cat===ent.cat);if(i>=0){if((board[i].score||0)<(ent.score||0))board[i]=ent;}else board.push(ent);}
+function tidyBoard(b){b.sort((a,z)=>(z.score||0)-(a.score||0));return b.slice(0,30);}
+// If a manager renamed the person signed in on this device, switch this device to the new name.
+function followRename(rec){
+  const u=getUser();if(!u)return null;
+  let pid=normPid(u.first,u.last);
+  for(let hops=0;hops<5&&rec.renamed[pid];hops++){
+    const t=rec.renamed[pid];if(!t||!t.first||!t.last)break;
+    saveUser({first:t.first,last:t.last});S.name=t.first+' '+t.last;
+    const next=normPid(t.first,t.last);if(next===pid)break;pid=next;
+  }
+  return pid;
+}
+let LB_FAILED=false;
+async function getLb(){const data=await fetchAll();LB_FAILED=!!data._failed;return visible(data,data.scores[lbKey()]);}
+// Returns 'ok', 'removed' (this player was removed by a manager) or 'failed' (no connection).
+async function saveLb(score,cat,answers){
   const maxAttempts=3;
   for(let attempt=0;attempt<maxAttempts;attempt++){
     try{
-      const data=await fetchAll();
-      const sc=data.scores||{};
-      const keys=[monthKey(),weekKey()];
-      keys.forEach(key=>{
+      const data=await fetchAll(true);
+      followRename(data);
+      const pid=getPlayerId();const name=S.name;
+      if(data.removed[pid])return 'removed';
+      purgeRemoved(data);
+      const sc=data.scores;
+      [monthKey(),weekKey()].forEach(key=>{
         let b=sc[key]||[];
-        // Match by unique player id first (prevents two same-named players clobbering each other).
-        // Fall back to legacy name+cat matching for entries saved before pid existed.
         let i=b.findIndex(e=>e.pid&&e.pid===pid&&e.cat===cat);
-        if(i<0)i=b.findIndex(e=>!e.pid&&e.name.toLowerCase()===name.toLowerCase()&&e.cat===cat);
+        if(i<0)i=b.findIndex(e=>!e.pid&&String(e.name).toLowerCase()===name.toLowerCase()&&e.cat===cat);
         const ent={name,score,cat,date:new Date().toISOString(),answers,pid};
         if(i>=0){if(b[i].score<score)b[i]=ent;}else b.push(ent);
-        b.sort((a,z)=>z.score-a.score);
-        sc[key]=b.slice(0,30);
+        sc[key]=tidyBoard(b);
       });
-      const res=await fetch(JBURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JBKEY},body:JSON.stringify({scores:sc})});
-      if(res.ok)return;
-      throw new Error('LB write failed: HTTP '+res.status);
+      await putAll(data);
+      return 'ok';
     }catch(e){
       console.error('LB save attempt '+(attempt+1)+' failed:',e);
-      if(attempt<maxAttempts-1)await new Promise(r=>setTimeout(r,200*(attempt+1)+Math.random()*300));
+      if(attempt<maxAttempts-1)await new Promise(r=>setTimeout(r,400*(attempt+1)+Math.random()*300));
     }
   }
-  console.error('LB save failed after '+maxAttempts+' attempts, score not saved.');
+  return 'failed';
 }
 
 // ── UTILITIES ──────────────────────────────────────────────
@@ -1352,29 +1416,51 @@ function sbtn(lbl,fn){return `<button class="sb" onclick="${fn}">${lbl}</button>
 function getUser(){try{const u=JSON.parse(localStorage.getItem(USER_KEY)||'null');return(u&&u.first&&u.last)?u:null;}catch{return null;}}
 function saveUser(u){try{localStorage.setItem(USER_KEY,JSON.stringify(u));}catch{}}
 function tidyName(v){return v.trim().replace(/\s+/g,' ').split(' ').map(w=>w?w[0].toUpperCase()+w.slice(1):w).join(' ');}
-function renderLogin(){
+function renderLogin(msg){
   S.scr='login';
   app().innerHTML=`${hdr()}<div class="card" style="margin-top:32px"><div style="text-align:center"><div style="font-size:56px;margin-bottom:8px">&#x2708;&#xFE0F;</div><h1>Passport Pro</h1><p style="color:#00AEEF;font-weight:800;font-size:11px;letter-spacing:2px;margin:0 0 12px">TEAM SIGN IN</p><p class="sub" style="margin-bottom:6px">Sign in with your name so your scores are saved to the team leaderboard.</p></div>
   <label class="lbl" for="lf">First name</label><input type="text" id="lf" autocomplete="given-name" placeholder="e.g. Thandi">
   <label class="lbl" for="ll">Surname</label><input type="text" id="ll" autocomplete="family-name" placeholder="e.g. Mokoena">
   <label class="lbl" for="lc">Team password</label><input type="password" id="lc" autocomplete="off" placeholder="Ask your team leader if you don't have it" onkeydown="if(event.key==='Enter')doLogin()">
   <div class="err" id="lerr"></div>
-  <button class="pb" style="margin-top:18px" onclick="doLogin()">Sign in &#8594;</button>
+  <button class="pb" id="lbtn" style="margin-top:18px" onclick="doLogin()">Sign in &#8594;</button>
   <p class="note">You will stay signed in on this device until you log out.</p></div>`;
   ['lf','ll'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();}));
+  if(msg)loginMsg(msg);
   setTimeout(()=>document.getElementById('lf')&&document.getElementById('lf').focus(),100);
 }
 function loginMsg(t){const e=document.getElementById('lerr');e.textContent=t;e.style.display='block';}
-function doLogin(){
+const REMOVED_MSG='This name is not active on Passport Pro at the moment. If you think this is a mistake, please speak to your team leader.';
+let LOGIN_BUSY=false;
+async function doLogin(){
+  if(LOGIN_BUSY)return;
   const first=tidyName(document.getElementById('lf').value);
   const last=tidyName(document.getElementById('ll').value);
   const code=document.getElementById('lc').value.trim();
-  if(!first||!last){loginMsg('Please add your first name and surname.');return;}
-  if(code.toLowerCase()!==TEAM_CODE.toLowerCase()){loginMsg('That password does not match. Please check it with your team leader and try again.');return;}
+  if(!first||!last){loginMsg('Please add your first name and your surname.');return;}
+  if(!code){loginMsg('Please type the team password. Ask your team leader if you do not have it.');return;}
+  const btn=document.getElementById('lbtn');
+  LOGIN_BUSY=true;if(btn){btn.disabled=true;btn.textContent='Checking, please wait...';}
+  const data=await fetchAll();
+  LOGIN_BUSY=false;if(btn){btn.disabled=false;btn.innerHTML='Sign in &#8594;';}
+  if(data._failed){loginMsg('We could not connect just now. Please check your internet connection and try again in a minute.');return;}
+  if(code.toLowerCase()!==currentTeamPass(data).toLowerCase()){loginMsg('That password does not match. Please check it with your team leader and try again.');return;}
   saveUser({first,last});
   S.name=first+' '+last;
+  const pid=followRename(data);
+  if(data.removed[pid]){try{localStorage.removeItem(USER_KEY);}catch(e){}S.name='';loginMsg(REMOVED_MSG);return;}
+  S.blocked=false;
   goHome();
 }
+// Quietly checks, in the background, that the person signed in on this device is still active.
+async function checkAccess(){
+  if(!getUser())return;
+  const data=await fetchAll();if(data._failed)return;
+  const before=S.name;const pid=followRename(data);
+  if(pid&&data.removed[pid]){if(S.scr==='quiz'||S.scr==='results')S.blocked=true;else signOutRemoved();return;}
+  if(S.name!==before&&S.scr==='home')renderHome();
+}
+function signOutRemoved(){stopTimer();try{localStorage.removeItem(USER_KEY);}catch(e){}S.name='';S.lastUsed={};S.blocked=false;S.scr='login';renderLogin(REMOVED_MSG);}
 function logOut(){
   if(S.scr==='quiz'&&!confirm('Log out now? This round will not be saved.'))return;
   switchPlayer();
@@ -1436,9 +1522,10 @@ function renderResults(){
   <div class="rb">
     <div style="font-size:48px;margin-bottom:8px">${medal}</div>
     <h2 style="color:#fff;font-size:26px;margin:0 0 4px">${S.score.toLocaleString()} pts</h2>
-    <p style="color:#00AEEF;font-weight:700;margin:0 0 6px">${ok}/${S.qs.length} correct (${pct}%) &mdash; ${msg}</p>
+    <p style="color:#00AEEF;font-weight:700;margin:0 0 6px">${ok}/${S.qs.length} correct (${pct}%) &middot; ${msg}</p>
     <p style="color:rgba(255,255,255,.7);font-size:13px;margin:0">${S.cat.emoji} ${h(S.cat.name)}</p>
   </div>
+  <p id="svst" class="svst svw"></p>
   <div style="background:#fff;border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 12px rgba(10,82,160,.08)">
     <p style="color:#0A52A0;font-weight:800;font-size:11px;letter-spacing:2px;margin:0 0 12px">QUESTION REVIEW</p>
     <div class="rv">${S.answers.map(a=>`<div class="rvi"><p style="font-size:13px;font-weight:600;margin:0 0 3px">${a.ok?'&#9989;':'&#10060;'} ${h(a.q)}</p>${!a.ok?`<p style="font-size:12px;color:#999;margin:0">Correct: ${h(a.ca)}</p>`:''}</div>`).join('')}</div>
@@ -1446,6 +1533,7 @@ function renderResults(){
   ${pbtn('&#127919; Play Again','goCategories()')}
   ${sbtn('&#127942; View Leaderboard','goLb()')}
 </div>`;
+  paintSaveState();
 }
 
 async function renderLeaderboard(){
@@ -1458,9 +1546,11 @@ async function renderLeaderboard(){
     <button class="ltb ${S.period==='monthly'?'on':'off'}" onclick="setPeriod('monthly')">Monthly</button>
     <button class="ltb ${S.period==='weekly'?'on':'off'}" onclick="setPeriod('weekly')">Weekly</button>
   </div>
-  ${board.length===0
-    ?`<div style="text-align:center;padding:48px 20px;color:#bbb"><div style="font-size:48px;margin-bottom:12px">&#127757;</div><p style="font-size:15px">No scores yet &mdash; be the first to play!</p></div>`
-    :`<div class="ll">${board.slice(0,20).map((e,i)=>`<div class="lr${e.name===S.name?' me':''}"><div class="lrk" style="background:${i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'#F0F0F0'};color:${i<3?'#fff':'#999'}">${i+1}</div><div style="flex:1;min-width:0"><p style="margin:0;font-weight:700;font-size:14px;color:#0A52A0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h(e.name)}${e.name===S.name?' (you)':''}</p><p style="margin:0;font-size:11px;color:#aaa">${h(e.cat)}</p></div><span style="font-weight:800;color:#0A52A0;font-size:16px;margin-left:8px">${e.score.toLocaleString()}</span></div>`).join('')}</div>`}
+  ${LB_FAILED
+    ?`<div style="text-align:center;padding:40px 20px;color:#888"><div style="font-size:44px;margin-bottom:12px">&#128268;</div><p style="font-size:15px;margin-bottom:6px">The scores could not load just now.</p><p style="font-size:13px">Your scores are safe. Please check your internet connection and try again.</p><button class="sb" style="max-width:220px" onclick="renderLeaderboard()">Try again</button></div>`
+    :board.length===0
+    ?`<div style="text-align:center;padding:48px 20px;color:#bbb"><div style="font-size:48px;margin-bottom:12px">&#127757;</div><p style="font-size:15px">No scores yet. Be the first to play!</p></div>`
+    :`<div class="ll">${board.slice(0,20).map((e,i)=>`<div class="lr${e.pid===getPlayerId()?' me':''}"><div class="lrk" style="background:${i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'#F0F0F0'};color:${i<3?'#fff':'#999'}">${i+1}</div><div style="flex:1;min-width:0"><p style="margin:0;font-weight:700;font-size:14px;color:#0A52A0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h(e.name)}${e.pid===getPlayerId()?' (you)':''}</p><p style="margin:0;font-size:11px;color:#aaa">${h(e.cat)}</p></div><span style="font-weight:800;color:#0A52A0;font-size:16px;margin-left:8px">${e.score.toLocaleString()}</span></div>`).join('')}</div>`}
   ${pbtn('&#127919; Play Now','goPlay()')}
   <p class="note">&#127758; Scores are shared across all players in real time!</p>
   <p class="note" style="cursor:pointer;text-decoration:underline;margin-top:6px" onclick="goManagerLogin()">Manager Tools</p>
@@ -1517,9 +1607,15 @@ function advance(){
   else{S.qi=next;renderQuiz();startTimer();}
 }
 
+function paintSaveState(){
+  const el=document.getElementById('svst');if(!el)return;
+  const m={saving:['svw','&#9203; Saving your score...'],ok:['svok','&#9989; Your score is saved to the leaderboard.'],failed:['svno','We could not save this score because the connection dropped. Please check your internet. Your next round will save as normal.'],removed:['svno','This score was not added to the leaderboard. Please speak to your team leader.']}[S.saveState];
+  if(m){el.className='svst '+m[0];el.innerHTML=m[1];}
+}
 function endRound(){
-  saveLb(S.name,S.score,S.cat.name,S.answers);
+  S.saveState='saving';
   S.scr='results';renderResults();
+  saveLb(S.score,S.cat.name,S.answers).then(r=>{S.saveState=r;if(r==='removed')S.blocked=true;paintSaveState();});
 }
 
 function startQuiz(cat){
@@ -1539,83 +1635,259 @@ function startQuiz(cat){
 }
 
 // ── NAVIGATION ─────────────────────────────────────────────
-function goHome(){stopTimer();if(!getUser()){renderLogin();return;}S.scr='home';renderHome();}
-function goPlay(){if(!getUser()){renderLogin();return;}S.scr='categories';renderCategories();}
-function goCategories(){S.scr='categories';renderCategories();}
+function goHome(){stopTimer();if(!getUser()){renderLogin();return;}if(S.blocked){signOutRemoved();return;}S.scr='home';renderHome();checkAccess();}
+function goPlay(){if(!getUser()){renderLogin();return;}if(S.blocked){signOutRemoved();return;}S.scr='categories';renderCategories();}
+function goCategories(){if(!getUser()){renderLogin();return;}if(S.blocked){signOutRemoved();return;}S.scr='categories';renderCategories();}
 function goLb(){S.scr='leaderboard';renderLeaderboard();}
 function setName(){const v=document.getElementById('ni')?.value?.trim();if(v){S.name=v;goCategories();}}
 function pickCat(id){const c=CATS.find(x=>x.id===id);if(c)startQuiz(c);}
 function setPeriod(p){S.period=p;renderLeaderboard();}
 
 // ── MANAGER TOOLS ──────────────────────────────────────────
-let MGR_DATA=null;
+let PENDING_NAME={first:'',last:''};
+let MGR_DATA=null,MGR_BOARD=[],MGR_BUSY=false,MGR_FLASH='',PLAYERS=[],REMOVED=[];
+function ha(s){return h(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function fmtDate(d){try{return d?new Date(d).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}):'';}catch(e){return '';}}
+function firstName(n){return String(n||'').split(' ')[0];}
+function flashHtml(){if(!MGR_FLASH)return '';const m=MGR_FLASH;MGR_FLASH='';return `<div class="okb">&#9989; ${m}</div>`;}
+function mgrNav(active){
+  const b=(id,lbl,fn)=>`<button class="ltb ${active===id?'on':'off'}" onclick="${fn}">${lbl}</button>`;
+  return `<div class="lt mnav">${b('scores','Scores','renderManagerView()')}${b('players','Players','renderPlayers()')}${b('pass','Team password','renderTeamPass()')}</div>`;
+}
+function mgrScreen(inner,back){app().innerHTML=`${hdr(back||'goLb()')}<div class="inner">${inner}</div>`;window.scrollTo(0,0);}
+function mgrLoading(msg){mgrScreen(`<div style="text-align:center;padding:48px 20px;color:#888"><div style="font-size:40px;margin-bottom:12px">&#9203;</div><p style="font-size:14px">${msg}</p><p class="note" style="color:#999">Please wait, this can take a few seconds.</p></div>`);}
+function mgrProblem(back){
+  mgrScreen(`<div class="card" style="margin:24px 0;width:100%;text-align:center"><div style="font-size:44px;margin-bottom:8px">&#128268;</div><h2 style="margin-top:0">We could not connect just now</h2><p class="sub">Nothing has been changed. Please check your internet connection and try again in a minute.</p>${pbtn('Try again',back||'renderManager()')}</div>`);
+}
+// Every manager change: read the latest scores, apply the change, save. If anything fails, nothing is saved.
+// change(data) returns nothing when it worked, or a short message to show instead of saving.
+async function mgrWrite(change,doneMsg,back,backFn){
+  if(MGR_BUSY)return;MGR_BUSY=true;
+  mgrLoading('Saving your change...');
+  let data;
+  try{data=await fetchAll(true);}catch(e){console.error(e);MGR_BUSY=false;mgrProblem(back);return;}
+  const msg=change(data);
+  if(msg){MGR_BUSY=false;MGR_DATA=data;MGR_FLASH='';mgrNote(msg,back);return;}
+  try{await putAll(data);}catch(e){console.error(e);MGR_BUSY=false;mgrProblem(back);return;}
+  MGR_BUSY=false;MGR_DATA=data;MGR_FLASH=doneMsg;backFn();
+}
+function mgrNote(msg,back){mgrScreen(`<div class="card" style="margin:24px 0;width:100%;text-align:center"><div style="font-size:44px;margin-bottom:8px">&#128161;</div><p class="sub" style="margin-bottom:10px">${msg}</p>${pbtn('OK',back)}</div>`);}
+
 function goManagerLogin(){
-  app().innerHTML=`${hdr('goLb()')}<div class="card"><h2 style="margin-top:0">&#128274; Manager Tools</h2><p style="color:#666;font-size:14px;margin:4px 0 0">Enter the manager passcode to continue</p><input type="password" id="mp" placeholder="Passcode" onkeydown="if(event.key==='Enter')checkManagerPass()"><button class="pb" onclick="checkManagerPass()">Enter</button></div>`;
+  app().innerHTML=`${hdr('goLb()')}<div class="card"><h2 style="margin-top:0">&#128274; Manager Tools</h2><p style="color:#666;font-size:14px;margin:4px 0 0">For team leaders only. Enter the manager passcode to continue.</p><input type="password" id="mp" placeholder="Manager passcode" onkeydown="if(event.key==='Enter')checkManagerPass()"><div class="err" id="mperr"></div><button class="pb" onclick="checkManagerPass()">Enter</button></div>`;
   setTimeout(()=>document.getElementById('mp')&&document.getElementById('mp').focus(),100);
 }
 function checkManagerPass(){
-  const v=document.getElementById('mp')?.value;
+  const v=(document.getElementById('mp')?.value||'').trim();
   if(v===MANAGER_PASS){renderManager();}
-  else{alert('Incorrect passcode.');}
+  else{const e=document.getElementById('mperr');e.textContent='That passcode does not match. Please check it and try again.';e.style.display='block';}
 }
 async function renderManager(){
-  app().innerHTML=`${hdr('goLb()')}<div class="inner" style="padding-top:16px"><div style="text-align:center;padding:48px 20px;color:#888"><div style="font-size:40px;margin-bottom:12px">&#9203;</div><p style="font-size:14px">Loading manager data...</p></div></div>`;
-  MGR_DATA=await fetchAll();
+  mgrLoading('Loading manager tools...');
+  try{MGR_DATA=await fetchAll(true);}catch(e){console.error(e);mgrProblem('renderManager()');return;}
   renderManagerView();
 }
+
+// Scores tab
 function renderManagerView(){
-  const sc=MGR_DATA.scores||{};
-  const key=lbKey();
-  const board=sc[key]||[];
-  app().innerHTML=`${hdr('goLb()')}
-<div class="inner">
-  <h2 style="margin-top:12px">&#128274; Manager Tools</h2>
+  if(!MGR_DATA){renderManager();return;}
+  MGR_BOARD=visible(MGR_DATA,MGR_DATA.scores[lbKey()]);
+  const board=MGR_BOARD;
+  mgrScreen(`<h2 style="margin-top:12px">&#128274; Manager Tools</h2>${mgrNav('scores')}${flashHtml()}
   <div class="lt">
-    <button class="ltb ${S.period==='monthly'?'on':'off'}" onclick="setMgrPeriod('monthly')">Monthly</button>
-    <button class="ltb ${S.period==='weekly'?'on':'off'}" onclick="setMgrPeriod('weekly')">Weekly</button>
+    <button class="ltb ${S.period==='monthly'?'on':'off'}" onclick="setMgrPeriod('monthly')">This month</button>
+    <button class="ltb ${S.period==='weekly'?'on':'off'}" onclick="setMgrPeriod('weekly')">This week</button>
   </div>
-  ${board.length===0?`<div style="text-align:center;padding:30px;color:#bbb"><p>No scores in this period.</p></div>`:`<div class="ll">${board.map((e,i)=>`<div class="lr" style="display:flex;align-items:center"><div style="flex:1;min-width:0"><p style="margin:0;font-weight:700;font-size:14px;color:#0A52A0">${h(e.name)}</p><p style="margin:0;font-size:11px;color:#aaa">${h(e.cat)} &middot; ${new Date(e.date).toLocaleDateString()}</p></div><span style="font-weight:800;color:#0A52A0;font-size:15px;margin-right:10px">${e.score.toLocaleString()}</span><button class="sb" style="width:auto;padding:6px 12px;margin:0;font-size:12px" onclick="viewAnswers(${i})">View</button></div>`).join('')}</div>`}
+  ${board.length===0?`<div style="text-align:center;padding:30px;color:#999"><p>No scores in this period yet.</p></div>`:`<div class="ll">${board.map((e,i)=>`<div class="lr mrow"><div style="flex:1;min-width:0"><p style="margin:0;font-weight:700;font-size:14px;color:#0A52A0">${h(e.name)}</p><p style="margin:0;font-size:11px;color:#888">${h(e.cat)} &middot; ${fmtDate(e.date)} &middot; <b>${(e.score||0).toLocaleString()} pts</b></p></div><div class="mbs"><button class="mb" onclick="viewAnswers(${i})">View</button><button class="mb soft" onclick="askRemoveScore(${i})">Delete</button></div></div>`).join('')}</div>`}
+  <p class="note" style="color:#888">Tap <b>View</b> to see how someone answered. Tap <b>Delete</b> to take one score off, for example a test round.</p>
   <div style="margin-top:24px;padding-top:16px;border-top:1px solid #ddd">
-    <p class="sl" style="margin-bottom:10px">CLEAR SCORES</p>
-    <button class="sb" onclick="clearBoard('weekly')">Clear This Week</button>
-    <button class="sb" onclick="clearBoard('monthly')">Clear This Month</button>
-    <button class="sb" style="border-color:#DC3545;color:#DC3545;margin-top:8px" onclick="clearBoard('all')">Clear Everything</button>
-  </div>
-</div>`;
+    <p class="sl" style="margin-bottom:6px">START A FRESH LEADERBOARD</p>
+    <p class="sub" style="font-size:13px;margin-bottom:6px">Only use these to reset the scores. To take one person off, use the <b>Players</b> tab instead.</p>
+    <button class="sb" onclick="askClear('weekly')">Clear this week's scores</button>
+    <button class="sb" onclick="askClear('monthly')">Clear this month's scores</button>
+    <button class="sb warn" style="margin-top:8px" onclick="askClear('all')">Clear every score on record</button>
+  </div>`);
 }
 function setMgrPeriod(p){S.period=p;renderManagerView();}
 function viewAnswers(idx){
-  const sc=MGR_DATA.scores||{};
-  const key=lbKey();
-  const board=sc[key]||[];
-  const e=board[idx];
-  if(!e||!e.answers){alert('No detailed answer breakdown is available for this score.');return;}
-  app().innerHTML=`${hdr('renderManagerView()')}
-<div class="inner">
-  <h2 style="margin-top:12px">${h(e.name)}&#39;s Round</h2>
-  <p class="sub" style="margin-bottom:10px">${h(e.cat)} &middot; ${e.score.toLocaleString()} pts &middot; ${new Date(e.date).toLocaleDateString()}</p>
+  const e=MGR_BOARD[idx];
+  if(!e||!e.answers||!e.answers.length){mgrNote('There is no answer breakdown saved for this score.','renderManagerView()');return;}
+  mgrScreen(`<h2 style="margin-top:12px">${h(e.name)}&#39;s round</h2>
+  <p class="sub" style="margin-bottom:10px">${h(e.cat)} &middot; ${(e.score||0).toLocaleString()} pts &middot; ${fmtDate(e.date)}</p>
   <div style="background:#fff;border-radius:16px;padding:18px;box-shadow:0 2px 12px rgba(10,82,160,.08)">
-    <div class="rv" style="max-height:none">${e.answers.map(a=>`<div class="rvi"><p style="font-size:13px;font-weight:600;margin:0 0 3px">${a.ok?'&#9989;':'&#10060;'} ${h(a.q)}</p><p style="font-size:12px;color:#999;margin:0">Answered: ${h(a.ua)}${!a.ok?` &middot; Correct: ${h(a.ca)}`:''}</p></div>`).join('')}</div>
+    <div class="rv" style="max-height:none">${e.answers.map(a=>`<div class="rvi"><p style="font-size:13px;font-weight:600;margin:0 0 3px">${a.ok?'&#9989;':'&#10060;'} ${h(a.q)}</p><p style="font-size:12px;color:#888;margin:0">Answered: ${h(a.ua)}${!a.ok?` &middot; Correct: ${h(a.ca)}`:''}</p></div>`).join('')}</div>
   </div>
-  ${pbtn('&#8592; Back','renderManagerView()')}
-</div>`;
+  ${pbtn('&#8592; Back to scores','renderManagerView()')}`,'renderManagerView()');
 }
-async function clearBoard(period){
-  const label=period==='all'?'ALL leaderboard history (every week and month on record)':(period==='weekly'?'this week\'s scores':'this month\'s scores');
-  if(!confirm('Are you sure you want to clear '+label+'? This cannot be undone.'))return;
-  try{
-    const data=await fetchAll();
-    const sc=data.scores||{};
-    if(period==='all'){Object.keys(sc).forEach(k=>delete sc[k]);}
-    else if(period==='weekly'){delete sc[weekKey()];}
-    else{delete sc[monthKey()];}
-    await fetch(JBURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JBKEY},body:JSON.stringify({scores:sc})});
-    alert('Scores cleared.');
-    renderManager();
-  }catch(e){alert('Something went wrong. Please try again.');console.error(e);}
+function askRemoveScore(idx){
+  const e=MGR_BOARD[idx];if(!e)return;
+  mgrScreen(`<div class="card" style="margin:24px 0;width:100%"><h2 style="margin-top:0">Delete this score?</h2>
+  <div class="cbx"><b>${h(e.name)}</b><br>${h(e.cat)} &middot; ${(e.score||0).toLocaleString()} pts &middot; ${fmtDate(e.date)}</div>
+  <ul class="bl"><li>This one score comes off the weekly and monthly leaderboards.</li><li>${h(firstName(e.name))} stays on Passport Pro and can keep playing.</li><li>A deleted score cannot be brought back.</li></ul>
+  <button class="pb warnp" onclick="doRemoveScore(${idx})">Yes, delete this score</button>${sbtn('No, go back','renderManagerView()')}</div>`,'renderManagerView()');
+}
+function doRemoveScore(idx){
+  const t=MGR_BOARD[idx];if(!t)return;const g=groupKey(t);
+  mgrWrite(data=>{
+    let found=0;
+    Object.keys(data.scores).forEach(k=>{const b=data.scores[k]||[];const kept=b.filter(e=>!(groupKey(e)===g&&e.cat===t.cat&&e.date===t.date));found+=b.length-kept.length;data.scores[k]=kept;});
+    if(!found)return 'This score has already been deleted.';
+  },'Score deleted.','renderManagerView()',renderManagerView);
+}
+function askClear(period){
+  const what=period==='all'?'every score on record, for every week and month':(period==='weekly'?'all of this week\'s scores':'all of this month\'s scores');
+  mgrScreen(`<div class="card" style="margin:24px 0;width:100%"><h2 style="margin-top:0">Clear ${period==='all'?'every score':'these scores'}?</h2>
+  <p class="sub">This clears ${what}. Everyone starts again from zero.</p>
+  <ul class="bl"><li>Players, removed players and the team password are not affected.</li><li>Cleared scores cannot be brought back.</li><li>To take off just one person, use the <b>Players</b> tab instead.</li></ul>
+  <button class="pb warnp" onclick="doClear('${period}')">Yes, clear ${period==='all'?'every score':'them'}</button>${sbtn('No, go back','renderManagerView()')}</div>`,'renderManagerView()');
+}
+function doClear(period){
+  mgrWrite(data=>{
+    if(period==='all'){data.scores={};}
+    else if(period==='weekly'){delete data.scores[weekKey()];}
+    else{delete data.scores[monthKey()];}
+  },'Scores cleared.','renderManagerView()',renderManagerView);
 }
 
-(function boot(){const u=getUser();if(u){S.name=u.first+' '+u.last;renderHome();}else{renderLogin();}})();
+// Players tab
+function buildPlayers(rec){
+  const map={};
+  Object.keys(rec.scores).forEach(k=>(rec.scores[k]||[]).forEach(e=>{
+    const g=groupKey(e);if(rec.removed[g])return;
+    let p=map[g];if(!p)p=map[g]={g:g,name:e.name,last:'',legacy:g.indexOf('n:')===0};
+    if(e.date&&(!p.last||e.date>p.last)){p.last=e.date;p.name=e.name;}
+  }));
+  return Object.values(map).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+}
+function renderPlayers(){
+  if(!MGR_DATA){renderManager();return;}
+  PLAYERS=buildPlayers(MGR_DATA);
+  REMOVED=Object.keys(MGR_DATA.removed).map(g=>Object.assign({g:g},MGR_DATA.removed[g])).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+  mgrScreen(`<h2 style="margin-top:12px">&#128274; Manager Tools</h2>${mgrNav('players')}${flashHtml()}
+  <p class="sub" style="margin-bottom:10px">Everyone who has a score on Passport Pro. Remove someone who has left, or fix a name that was typed incorrectly.</p>
+  ${PLAYERS.length>6?`<input type="text" id="pf" placeholder="Search for a name" oninput="filterPlayers()" style="margin:0 0 12px">`:''}
+  ${PLAYERS.length===0?`<div style="text-align:center;padding:24px;color:#999"><p>No players with scores yet.</p></div>`:`<div class="ll" id="plist">${PLAYERS.map((p,i)=>`<div class="lr mrow" data-n="${ha(String(p.name).toLowerCase())}"><div style="flex:1;min-width:0"><p style="margin:0;font-weight:700;font-size:14px;color:#0A52A0">${h(p.name)}</p><p style="margin:0;font-size:11px;color:#888">Last played ${fmtDate(p.last)}${p.legacy?' &middot; before sign-in was added':''}</p></div><div class="mbs"><button class="mb" onclick="askRename(${i})">Rename</button><button class="mb soft" onclick="askRemove(${i})">Remove</button></div></div>`).join('')}</div><p class="note" id="pnone" style="display:none;color:#888">No one matches that name.</p>`}
+  <p class="sl" style="margin-top:26px">REMOVED PLAYERS</p>
+  ${REMOVED.length===0?`<p class="sub" style="font-size:13px">No one has been removed.</p>`:`<div class="ll">${REMOVED.map((r,j)=>`<div class="lr mrow"><div style="flex:1;min-width:0"><p style="margin:0;font-weight:700;font-size:14px;color:#5B6B7C">${h(r.name)}</p><p style="margin:0;font-size:11px;color:#888">Removed ${fmtDate(r.on)}</p></div><div class="mbs"><button class="mb" onclick="doRestore(${j})">Bring back</button></div></div>`).join('')}</div>`}
+  <details class="help"><summary>What do I do when...</summary>
+    <p><b>Someone leaves the team?</b><br>Tap <b>Remove</b> next to their name. Then change the team password, so they cannot sign in again under a different name.</p>
+    <p><b>Someone new joins?</b><br>Give them the team password. They sign in with their own first name and surname. Nothing else is needed.</p>
+    <p><b>A name is spelt wrong, or one person shows twice?</b><br>Tap <b>Rename</b> and type the correct name. If that name is already on the list, the two are combined and the best score in each category is kept.</p>
+    <p><b>A computer still shows someone else's name?</b><br>On the home screen, tap <b>Not you? Log out</b>. If that person has been removed, the computer signs them out by itself.</p>
+    <p><b>I removed someone by mistake?</b><br>Find them under Removed players and tap <b>Bring back</b>. Their scores come back too.</p>
+    <p><b>A new person has the same name as someone removed?</b><br>Ask them to add an initial to their surname when they sign in, for example Mokoena N.</p>
+  </details>`);
+}
+function filterPlayers(){
+  const q=(document.getElementById('pf')?.value||'').toLowerCase().trim();let shown=0;
+  document.querySelectorAll('#plist .lr').forEach(r=>{const ok=!q||r.getAttribute('data-n').indexOf(q)>=0;r.style.display=ok?'':'none';if(ok)shown++;});
+  const n=document.getElementById('pnone');if(n)n.style.display=shown?'none':'block';
+}
+function askRemove(i){
+  const p=PLAYERS[i];if(!p)return;
+  mgrScreen(`<div class="card" style="margin:24px 0;width:100%"><h2 style="margin-top:0">Remove ${h(p.name)}?</h2>
+  <ul class="bl"><li>Their scores come off every leaderboard, weekly and monthly.</li><li>They can no longer sign in with this name. If they are signed in somewhere, they are signed out.</li><li>No one else is affected.</li><li>You can bring them back at any time from <b>Removed players</b>.</li></ul>
+  <button class="pb warnp" onclick="doRemove(${i})">Yes, remove ${h(firstName(p.name))}</button>${sbtn('No, go back','renderPlayers()')}</div>`,'renderPlayers()');
+}
+function doRemove(i){
+  const p=PLAYERS[i];if(!p)return;const g=p.g;
+  mgrWrite(data=>{
+    if(data.removed[g])return h(p.name)+' has already been removed.';
+    const kept={};let found=0;
+    Object.keys(data.scores).forEach(k=>{
+      const b=data.scores[k]||[];
+      const mine=b.filter(e=>groupKey(e)===g);
+      if(mine.length){found+=mine.length;kept[k]=mine.map(e=>({name:e.name,score:e.score,cat:e.cat,date:e.date,pid:e.pid}));}
+      data.scores[k]=b.filter(e=>groupKey(e)!==g);
+    });
+    data.removed[g]={name:p.name,on:new Date().toISOString(),entries:kept};
+  },h(p.name)+' has been removed.','renderPlayers()',renderPlayers);
+}
+function doRestore(j){
+  const r=REMOVED[j];if(!r)return;const g=r.g;
+  mgrWrite(data=>{
+    const rec=data.removed[g];
+    if(!rec)return h(r.name)+' is already back on Passport Pro.';
+    const ent=rec.entries||{};
+    Object.keys(ent).forEach(k=>{const b=data.scores[k]||[];(ent[k]||[]).forEach(e=>mergeInto(b,e));data.scores[k]=tidyBoard(b);});
+    delete data.removed[g];
+  },h(r.name)+' is back on Passport Pro.','renderPlayers()',renderPlayers);
+}
+function askRename(i,err){
+  const p=PLAYERS[i];if(!p)return;
+  const parts=String(p.name).trim().split(' ');const f=parts.shift()||'';const l=parts.join(' ');
+  mgrScreen(`<div class="card" style="margin:24px 0;width:100%"><h2 style="margin-top:0">Rename ${h(p.name)}</h2>
+  <p class="sub" style="margin-bottom:0">Type the correct first name and surname. Their scores move to the new name, and the computer they use updates by itself.</p>
+  <label class="lbl" for="rf">First name</label><input type="text" id="rf" value="${ha(f)}">
+  <label class="lbl" for="rl">Surname</label><input type="text" id="rl" value="${ha(l)}">
+  <div class="err" id="rerr"></div>
+  <button class="pb" style="margin-top:18px" onclick="checkRename(${i})">Save name</button>${sbtn('Cancel','renderPlayers()')}</div>`,'renderPlayers()');
+  if(err){const e=document.getElementById('rerr');e.textContent=err;e.style.display='block';}
+}
+function checkRename(i){
+  const p=PLAYERS[i];if(!p)return;
+  const first=tidyName(document.getElementById('rf').value),last=tidyName(document.getElementById('rl').value);
+  const e=document.getElementById('rerr');
+  if(!first||!last){e.textContent='Please add a first name and a surname.';e.style.display='block';return;}
+  const np=normPid(first,last);const nn=first+' '+last;
+  if(np===p.g&&nn===p.name){renderPlayers();return;}
+  if(MGR_DATA.removed[np]){e.textContent=nn+' is on the Removed players list. Bring them back first, then try again.';e.style.display='block';return;}
+  PENDING_NAME={first:first,last:last};
+  const other=PLAYERS.find(x=>x.g===np&&x.g!==p.g);
+  if(other){
+    mgrScreen(`<div class="card" style="margin:24px 0;width:100%"><h2 style="margin-top:0">Combine with ${h(other.name)}?</h2>
+    <p class="sub">There is already a player called <b>${h(other.name)}</b>. If this is the same person, their scores will be combined and the best score in each category is kept.</p>
+    <button class="pb" onclick="doRename(${i},PENDING_NAME.first,PENDING_NAME.last)">Yes, it is the same person</button>${sbtn('No, go back','askRename('+i+')')}</div>`,'renderPlayers()');
+    return;
+  }
+  doRename(i,first,last);
+}
+function doRename(i,first,last){
+  const p=PLAYERS[i];if(!p)return;const oldG=p.g;const np=normPid(first,last);const nn=first+' '+last;
+  mgrWrite(data=>{
+    if(data.removed[np])return nn+' is on the Removed players list. Bring them back first, then try again.';
+    let found=0;
+    Object.keys(data.scores).forEach(k=>{
+      const b=data.scores[k]||[];
+      const moving=b.filter(e=>groupKey(e)===oldG);const rest=b.filter(e=>groupKey(e)!==oldG);
+      moving.forEach(e=>{found++;e.name=nn;e.pid=np;mergeInto(rest,e);});
+      data.scores[k]=tidyBoard(rest);
+    });
+    if(!found)return 'We could not find scores for '+h(p.name)+'. They may have been renamed or removed already.';
+    delete data.renamed[np];
+    Object.keys(data.renamed).forEach(k=>{const t=data.renamed[k];if(t&&normPid(t.first,t.last)===oldG)data.renamed[k]={first:first,last:last};});
+    if(oldG.indexOf('u:')===0)data.renamed[oldG]={first:first,last:last};
+  },'Saved. The name is now '+h(nn)+'.','renderPlayers()',renderPlayers);
+}
+
+// Team password tab
+function currentTeamPass(rec){return(rec&&typeof rec.teamPass==='string'&&rec.teamPass)?rec.teamPass:TEAM_CODE;}
+function renderTeamPass(){
+  if(!MGR_DATA){renderManager();return;}
+  mgrScreen(`<h2 style="margin-top:12px">&#128274; Manager Tools</h2>${mgrNav('pass')}${flashHtml()}
+  <div class="card" style="margin:0;width:100%">
+  <h2 style="margin-top:0">&#128273; Team password</h2>
+  <p class="sub" style="margin-bottom:8px">This is the password your team types when they sign in. Change it when someone leaves, so only current team members can sign in.</p>
+  <div class="cbx">Current password: <b id="cpw">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</b> <button class="mb" style="margin-left:6px" onclick="showPw()">Show</button></div>
+  <label class="lbl" for="np1">New password</label><input type="text" id="np1" autocomplete="off" placeholder="At least 6 characters">
+  <label class="lbl" for="np2">Type the new password again</label><input type="text" id="np2" autocomplete="off">
+  <div class="err" id="perr"></div>
+  <button class="pb" style="margin-top:18px" onclick="savePw()">Save new password</button>
+  <ul class="bl" style="margin-top:16px"><li>Everyone already signed in stays signed in.</li><li>Anyone signing in from now on needs the new password, so share it with your team.</li></ul>
+  </div>`);
+}
+function showPw(){const el=document.getElementById('cpw');if(el)el.textContent=currentTeamPass(MGR_DATA);}
+function savePw(){
+  const a=(document.getElementById('np1').value||'').trim(),b=(document.getElementById('np2').value||'').trim();
+  const e=document.getElementById('perr');
+  const say=t=>{e.textContent=t;e.style.display='block';};
+  if(a.length<6){say('Please use at least 6 characters.');return;}
+  if(a!==b){say('The two passwords are not the same. Please type them again.');return;}
+  if(a===MANAGER_PASS){say('Please choose a password that is different from the manager passcode.');return;}
+  mgrWrite(data=>{data.teamPass=a;},'Team password changed. Please share the new password with your team.','renderTeamPass()',renderTeamPass);
+}
+
+(function boot(){const u=getUser();if(u){S.name=u.first+' '+u.last;S.scr='home';renderHome();checkAccess();}else{renderLogin();}})();
 </script>
 </body>
 </html>
