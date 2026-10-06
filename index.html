@@ -1334,99 +1334,83 @@ const CATS=[
 {id:'culture',name:'Our Culture',emoji:'🧭',type:'learn'}
 ];
 
-// ── JSONBIN LEADERBOARD ────────────────────────────────────
-const JBID='6a1e8c75f5f4af5e29abe6b2';
-const JBKEY='$2a$10$.gdk/eGQNO16FEr4Fv32r.7hS1FS6A4Y0BtJGIfNpmxDXdb3HNPLG';
-const JBURL='https://api.jsonbin.io/v3/b/'+JBID;
-// Starting manager passcode. Managers can change it in Manager Tools > Passwords.
-// If everyone forgets the new one: change the text between the quotes here on GitHub.
-// Once this line is different from before, the passcode typed here works again.
-const MANAGER_PASS='thompsons2026';
-// Starting team sign-in password. Once a manager changes the password in Manager Tools > Team password,
-// that one is used instead and this line is only a fallback.
-const TEAM_CODE='Train!ng@T4TJNB2026';
+// ── LEADERBOARD (Google Sheet) ─────────────────────────────
+// Scores are saved in the "Passport Pro Scores" Google Sheet, owned by the Thompsons Google account.
+// Every round is added as its own row, so players finishing at the same moment can never overwrite each other,
+// and nothing is ever deleted: deleted or cleared scores stay in the Sheet, marked in the Status column.
+// Passwords live in the Settings tab of that Sheet. Forgotten one? Open the Sheet and type a new one there.
+const SHEET_URL='https://script.google.com/macros/s/AKfycbxiiP9VwQ5k-I0qnVjsVBRBF5A98pKLBEFN5eXbwir_Q95f681XqlCJ9oCZKni7_uFJ6Q/exec';
+// The old storage. Only used once, by Manager Tools > Move scores across, which only reads from it.
+const OLD_JBURL='https://api.jsonbin.io/v3/b/6a1e8c75f5f4af5e29abe6b2';
+const OLD_JBKEY='$2a$10$.gdk/eGQNO16FEr4Fv32r.7hS1FS6A4Y0BtJGIfNpmxDXdb3HNPLG';
+const OLD_MANAGER_PASS='thompsons2026',OLD_TEAM_CODE='Train!ng@T4TJNB2026';
 const USER_KEY='tft_pp_user';
 
 function getWeek(d){const u=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const day=u.getUTCDay()||7;u.setUTCDate(u.getUTCDate()+4-day);const ys=new Date(Date.UTC(u.getUTCFullYear(),0,1));return Math.ceil((((u-ys)/86400000)+1)/7);}
-function monthKey(){const n=new Date();return `tft_lb_${n.getFullYear()}_${n.getMonth()+1}`;}
-function weekKey(){const n=new Date();return `tft_lb_w_${n.getFullYear()}_${getWeek(n)}`;}
+const pad2=n=>String(n).padStart(2,'0');
+function monthKey(d){const n=d||new Date();return `${n.getFullYear()}-${pad2(n.getMonth()+1)}`;}
+function weekKey(d){const n=d||new Date();return `${n.getFullYear()}-W${pad2(getWeek(n))}`;}
 function lbKey(){return S.period==='monthly'?monthKey():weekKey();}
 function normPid(first,last){return 'u:'+(first+' '+last).toLowerCase().replace(/\s+/g,' ').trim();}
-function getPlayerId(){const u=getUser();if(u)return normPid(u.first,u.last);try{let pid=localStorage.getItem('tft_pp_pid');if(!pid){pid=(crypto.randomUUID?crypto.randomUUID():'p'+Date.now()+Math.random().toString(36).slice(2));localStorage.setItem('tft_pp_pid',pid);}return pid;}catch(e){return 'p'+Date.now()+Math.random().toString(36).slice(2);}}
-// One "person" on the leaderboard. Signed-in players are grouped by their full name.
-// Older scores saved before sign-in existed are grouped by the name that was typed.
+function getPlayerId(){const u=getUser();return u?normPid(u.first,u.last):'';}
 function groupKey(e){return(e&&e.pid&&String(e.pid).indexOf('u:')===0)?e.pid:'n:'+String((e&&e.name)||'').toLowerCase().replace(/\s+/g,' ').trim();}
-function tidyRec(rec){
-  if(!rec||typeof rec!=='object'||Array.isArray(rec))throw new Error('Unexpected leaderboard data');
-  if(!rec.scores||typeof rec.scores!=='object')rec.scores={};
-  if(!rec.removed||typeof rec.removed!=='object')rec.removed={};
-  if(!rec.renamed||typeof rec.renamed!=='object')rec.renamed={};
-  return rec;
-}
-// strict=true is used before every save. If the scores cannot be read (poor connection, service busy),
-// nothing is written, so a bad connection can never wipe the leaderboard.
-async function fetchAll(strict){
-  try{
-    const r=await fetch(JBURL+'/latest',{headers:{'X-Master-Key':JBKEY},cache:'no-store'});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const d=await r.json();
-    if(!d||!('record' in d))throw new Error('No record in response');
-    return tidyRec(d.record);
-  }catch(e){
-    if(strict)throw e;
-    return{scores:{},removed:{},renamed:{},_failed:true};
-  }
-}
-// Writes the whole record back, keeping removed players, renames and the team password.
-async function putAll(rec){
-  const body={};Object.keys(rec).forEach(k=>{if(k!=='_failed')body[k]=rec[k];});
-  const res=await fetch(JBURL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':JBKEY},body:JSON.stringify(body)});
+const nap=ms=>new Promise(r=>setTimeout(r,ms));
+
+// One call to the Google Sheet. Reads use GET, anything with a password or a score uses POST.
+async function api(action,data,get){
+  let res;
+  if(get){res=await fetch(SHEET_URL+'?'+new URLSearchParams(Object.assign({action},data||{})).toString(),{cache:'no-store'});}
+  else{res=await fetch(SHEET_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(Object.assign({action},data||{}))});}
   if(!res.ok)throw new Error('HTTP '+res.status);
-}
-function visible(rec,list){return(list||[]).filter(e=>!rec.removed[groupKey(e)]);}
-function purgeRemoved(rec){Object.keys(rec.scores).forEach(k=>{rec.scores[k]=visible(rec,rec.scores[k]);});}
-function mergeInto(board,ent){const g=groupKey(ent);const i=board.findIndex(e=>groupKey(e)===g&&e.cat===ent.cat);if(i>=0){if((board[i].score||0)<(ent.score||0))board[i]=ent;}else board.push(ent);}
-function tidyBoard(b){b.sort((a,z)=>(z.score||0)-(a.score||0));return b.slice(0,30);}
-// If a manager renamed the person signed in on this device, switch this device to the new name.
-function followRename(rec){
-  const u=getUser();if(!u)return null;
-  let pid=normPid(u.first,u.last);
-  for(let hops=0;hops<5&&rec.renamed[pid];hops++){
-    const t=rec.renamed[pid];if(!t||!t.first||!t.last)break;
-    saveUser({first:t.first,last:t.last});S.name=t.first+' '+t.last;
-    const next=normPid(t.first,t.last);if(next===pid)break;pid=next;
-  }
-  return pid;
+  const j=await res.json();
+  if(!j||typeof j!=='object')throw new Error('Unexpected reply');
+  return j;
 }
 let LB_FAILED=false;
-async function getLb(){const data=await fetchAll();LB_FAILED=!!data._failed;return visible(data,data.scores[lbKey()]);}
-// Returns 'ok', 'removed' (this player was removed by a manager) or 'failed' (no connection).
-async function saveLb(score,cat,answers){
-  const maxAttempts=3;
-  for(let attempt=0;attempt<maxAttempts;attempt++){
+async function getLb(){
+  try{const r=await api('board',{period:lbKey()},true);if(!r.ok)throw new Error(r.error);LB_FAILED=false;return(r.entries||[]).map(e=>Object.assign(e,{pid:e.g}));}
+  catch(e){console.error(e);LB_FAILED=true;return[];}
+}
+// If a manager renamed the person signed in on this device, switch this device to the new name.
+function applyRename(t){const u=getUser();if(!u||!t||!t.first||!t.last)return;saveUser(Object.assign({},u,{first:t.first,last:t.last}));S.name=t.first+' '+t.last;}
+// Returns 'ok', 'removed' (taken off by a manager), 'signin' (needs to sign in again) or 'failed' (no connection).
+async function saveLb(round){
+  const u=getUser();if(!u||!u.token)return 'signin';
+  const d=new Date(round.date);
+  for(let attempt=0;attempt<5;attempt++){
     try{
-      const data=await fetchAll(true);
-      followRename(data);
-      const pid=getPlayerId();const name=S.name;
-      if(data.removed[pid])return 'removed';
-      purgeRemoved(data);
-      const sc=data.scores;
-      [monthKey(),weekKey()].forEach(key=>{
-        let b=sc[key]||[];
-        let i=b.findIndex(e=>e.pid&&e.pid===pid&&e.cat===cat);
-        if(i<0)i=b.findIndex(e=>!e.pid&&String(e.name).toLowerCase()===name.toLowerCase()&&e.cat===cat);
-        const ent={name,score,cat,date:new Date().toISOString(),answers,pid};
-        if(i>=0){if(b[i].score<score)b[i]=ent;}else b.push(ent);
-        sc[key]=tidyBoard(b);
-      });
-      await putAll(data);
-      return 'ok';
-    }catch(e){
-      console.error('LB save attempt '+(attempt+1)+' failed:',e);
-      if(attempt<maxAttempts-1)await new Promise(r=>setTimeout(r,400*(attempt+1)+Math.random()*300));
-    }
+      const r=await api('save',{id:round.id,tg:u.tg,token:u.token,name:S.name,cat:round.cat,score:round.score,correct:round.correct,date:round.date,month:monthKey(d),week:weekKey(d),answers:round.answers});
+      if(r.ok)return r.status==='removed'?'removed':'ok';
+      if(r.reason==='signin')return 'signin';
+      console.error('Save refused:',r.error);
+    }catch(e){console.error('Save attempt '+(attempt+1)+' failed:',e);}
+    if(attempt<4)await nap(1000*(attempt+1)+Math.random()*1500);
   }
   return 'failed';
+}
+
+// Scores that could not save are kept on this device and tried again automatically.
+const PEND_KEY='tft_pp_pending';
+function getPending(){try{const a=JSON.parse(localStorage.getItem(PEND_KEY)||'[]');return Array.isArray(a)?a:[];}catch(e){return[];}}
+function setPending(a){try{if(a.length)localStorage.setItem(PEND_KEY,JSON.stringify(a.slice(-10)));else localStorage.removeItem(PEND_KEY);}catch(e){}}
+function addPending(item){const a=getPending().filter(x=>x.id!==item.id);a.push(item);setPending(a);}
+let PEND_BUSY=false,PEND_TIMER=null;
+async function retryPending(){
+  if(PEND_BUSY)return;const u=getUser();if(!u||!u.token)return;
+  const mine=getPending().filter(p=>p.tg===u.tg);if(!mine.length)return;
+  PEND_BUSY=true;
+  for(const p of mine){
+    const r=await saveLb(p);
+    if(r==='failed'||r==='signin')continue;
+    setPending(getPending().filter(x=>x.id!==p.id));
+    if(r==='ok'){
+      if(S.scr==='results'&&S.roundId===p.id){S.saveState='ok';paintSaveState();}
+      else{S.pendNote='Good news: your earlier '+p.cat+' score of '+Number(p.score).toLocaleString()+' pts has now been saved.';if(S.scr==='home')renderHome();}
+    }
+  }
+  PEND_BUSY=false;
+  clearTimeout(PEND_TIMER);
+  if(getPending().some(p=>p.tg===u.tg))PEND_TIMER=setTimeout(retryPending,45000);
 }
 
 // ── UTILITIES ──────────────────────────────────────────────
@@ -1446,7 +1430,9 @@ function pbtn(lbl,fn){return `<button class="pb" onclick="${fn}">${lbl}</button>
 function sbtn(lbl,fn){return `<button class="sb" onclick="${fn}">${lbl}</button>`;}
 
 // ── SIGN IN ────────────────────────────────────────────────
-function getUser(){try{const u=JSON.parse(localStorage.getItem(USER_KEY)||'null');return(u&&u.first&&u.last)?u:null;}catch{return null;}}
+function readUser(){try{const u=JSON.parse(localStorage.getItem(USER_KEY)||'null');return(u&&u.first&&u.last)?u:null;}catch{return null;}}
+// Signed in = signed in to the Google Sheet scoreboard (has a token). Older sign-ins are asked to sign in once more.
+function getUser(){const u=readUser();return(u&&u.token&&u.tg)?u:null;}
 function saveUser(u){try{localStorage.setItem(USER_KEY,JSON.stringify(u));}catch{}}
 function tidyName(v){return v.trim().replace(/\s+/g,' ').split(' ').map(w=>w?w[0].toUpperCase()+w.slice(1):w).join(' ');}
 function renderLogin(msg){
@@ -1459,11 +1445,13 @@ function renderLogin(msg){
   <button class="pb" id="lbtn" style="margin-top:18px" onclick="doLogin()">Sign in &#8594;</button>
   <p class="note">You will stay signed in on this device until you log out.</p></div>`;
   ['lf','ll'].forEach(id=>document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();}));
+  const old=readUser();if(old&&!old.token){document.getElementById('lf').value=old.first;document.getElementById('ll').value=old.last;}
   if(msg)loginMsg(msg);
-  setTimeout(()=>document.getElementById('lf')&&document.getElementById('lf').focus(),100);
+  setTimeout(()=>{const f=document.getElementById(old&&!old.token?'lc':'lf');if(f)f.focus();},100);
 }
 function loginMsg(t){const e=document.getElementById('lerr');e.textContent=t;e.style.display='block';}
 const REMOVED_MSG='This name is not active on Passport Pro at the moment. If you think this is a mistake, please speak to your team leader.';
+const MOVED_MSG='Passport Pro has a new, bigger scoreboard. Please sign in once more with the team password. You only need to do this once.';
 let LOGIN_BUSY=false;
 async function doLogin(){
   if(LOGIN_BUSY)return;
@@ -1474,24 +1462,23 @@ async function doLogin(){
   if(!code){loginMsg('Please type the team password. Ask your team leader if you do not have it.');return;}
   const btn=document.getElementById('lbtn');
   LOGIN_BUSY=true;if(btn){btn.disabled=true;btn.textContent='Checking, please wait...';}
-  const data=await fetchAll();
+  let r=null;try{r=await api('login',{first,last,code});}catch(e){console.error(e);}
   LOGIN_BUSY=false;if(btn){btn.disabled=false;btn.innerHTML='Sign in &#8594;';}
-  if(data._failed){loginMsg('We could not connect just now. Please check your internet connection and try again in a minute.');return;}
-  if(code.toLowerCase()!==currentTeamPass(data).toLowerCase()){loginMsg('That password does not match. Please check it with your team leader and try again.');return;}
-  saveUser({first,last});
-  S.name=first+' '+last;
-  const pid=followRename(data);
-  if(data.removed[pid]){try{localStorage.removeItem(USER_KEY);}catch(e){}S.name='';loginMsg(REMOVED_MSG);return;}
-  S.blocked=false;
+  if(!r){loginMsg('We could not connect just now. Please check your internet connection and try again in a minute.');return;}
+  if(!r.ok){loginMsg(r.reason==='removed'?REMOVED_MSG:r.reason==='password'?'That password does not match. Please check it with your team leader and try again.':'Please add your first name and your surname.');return;}
+  saveUser({first:r.first,last:r.last,tg:r.tg,token:r.token});
+  S.name=r.first+' '+r.last;S.blocked=false;
   goHome();
 }
 // Quietly checks, in the background, that the person signed in on this device is still active.
 async function checkAccess(){
   if(!getUser())return;
-  const data=await fetchAll();if(data._failed)return;
-  const before=S.name;const pid=followRename(data);
-  if(pid&&data.removed[pid]){if(S.scr==='quiz'||S.scr==='results')S.blocked=true;else signOutRemoved();return;}
+  let r=null;try{r=await api('check',{g:getPlayerId()},true);}catch(e){return;}
+  if(!r||!r.ok)return;
+  const before=S.name;if(r.rename)applyRename(r.rename);
+  if(r.removed){if(S.scr==='quiz'||S.scr==='results')S.blocked=true;else signOutRemoved();return;}
   if(S.name!==before&&S.scr==='home')renderHome();
+  retryPending();
 }
 function signOutRemoved(){stopTimer();try{localStorage.removeItem(USER_KEY);}catch(e){}S.name='';S.lastUsed={};S.blocked=false;S.scr='login';renderLogin(REMOVED_MSG);}
 function logOut(){
@@ -1507,7 +1494,7 @@ function switchPlayer(){
 
 // ── SCREENS ────────────────────────────────────────────────
 function renderHome(){
-  app().innerHTML=`${hdr()}<div class="card" style="text-align:center;margin-top:32px"><div style="font-size:56px;margin-bottom:8px">&#x2708;&#xFE0F;</div><h1>Passport Pro</h1><p style="color:#00AEEF;font-weight:800;font-size:11px;letter-spacing:2px;margin:0 0 12px">TRAVEL KNOWLEDGE CHALLENGE</p><p class="sub">Test your destination knowledge and sales skills. Earn points, build streaks and compete with your colleagues!</p><span class="who">&#128100; Signed in as ${h(S.name)}</span>${pbtn('&#127919; Start Playing','goPlay()')}${sbtn('&#127942; Leaderboard','goLb()')}<button class="lnk" onclick="logOut()">Not you? Log out</button></div>`;
+  app().innerHTML=`${hdr()}<div class="card" style="text-align:center;margin-top:32px"><div style="font-size:56px;margin-bottom:8px">&#x2708;&#xFE0F;</div><h1>Passport Pro</h1><p style="color:#00AEEF;font-weight:800;font-size:11px;letter-spacing:2px;margin:0 0 12px">TRAVEL KNOWLEDGE CHALLENGE</p><p class="sub">Test your destination knowledge and sales skills. Earn points, build streaks and compete with your colleagues!</p><span class="who">&#128100; Signed in as ${h(S.name)}</span>${S.pendNote?`<p class="svst svok" style="margin-top:12px">&#9989; ${h(S.pendNote)}</p>`:''}${pbtn('&#127919; Start Playing','goPlay()')}${sbtn('&#127942; Leaderboard','goLb()')}<button class="lnk" onclick="logOut()">Not you? Log out</button></div>`;
 }
 
 function renderName(){
@@ -1605,7 +1592,7 @@ function handleTimeout(){
   if(S.showFb)return;
   const q=S.qs[S.qi];
   S.picked=-1;S.showFb=true;S.streak=0;
-  S.answers.push({q:q[0],ok:false,pts:0,ua:'No answer',ca:q[q[5]+1],ex:q[6]});
+  S.answers.push({q:q[0],ok:false,ua:'No answer',ca:q[q[5]+1]});
   showFb(false,'Time\'s up!',q[6]);
   [0,1,2,3].forEach(i=>{const el=document.getElementById('op'+i);if(el){el.disabled=true;if(i===q[5])el.classList.add('ok');}});
   S.fbto=setTimeout(advance,1800);
@@ -1621,7 +1608,7 @@ function handlePick(idx){
   const pts=ok?Math.floor((100+Math.floor((S.tLeft/35)*50))*mult):0;
   S.picked=idx;S.showFb=true;S.streak=ns;
   if(ok)S.score+=pts;
-  S.answers.push({q:q[0],ok,pts,ua:q[idx+1],ca:q[q[5]+1],ex:q[6]});
+  S.answers.push({q:q[0],ok,ua:q[idx+1],ca:q[q[5]+1]});
   [0,1,2,3].forEach(i=>{const el=document.getElementById('op'+i);if(el){el.disabled=true;if(i===q[5])el.classList.add('ok');else if(i===idx&&!ok)el.classList.add('ng');}});
   const sc=document.getElementById('sc');if(sc)sc.textContent='⭐ '+S.score.toLocaleString();
   showFb(ok,ok?'Correct!':'Not quite.',q[6]);
@@ -1642,13 +1629,18 @@ function advance(){
 
 function paintSaveState(){
   const el=document.getElementById('svst');if(!el)return;
-  const m={saving:['svw','&#9203; Saving your score...'],ok:['svok','&#9989; Your score is saved to the leaderboard.'],failed:['svno','We could not save this score because the connection dropped. Please check your internet. Your next round will save as normal.'],removed:['svno','This score was not added to the leaderboard. Please speak to your team leader.']}[S.saveState];
+  const m={saving:['svw','&#9203; Saving your score...'],ok:['svok','&#9989; Your score is saved to the leaderboard.'],failed:['svno','Your score has not saved yet. There is no need to play again: Passport Pro will keep trying in the background, and again the next time you open it.'],signin:['svno','Please log out and sign in again so this score can save. It is kept on this computer and saves once you are signed in.'],removed:['svno','This score was not added to the leaderboard. Please speak to your team leader.']}[S.saveState];
   if(m){el.className='svst '+m[0];el.innerHTML=m[1];}
 }
 function endRound(){
   S.saveState='saving';
   S.scr='results';renderResults();
-  saveLb(S.score,S.cat.name,S.answers).then(r=>{S.saveState=r;if(r==='removed')S.blocked=true;paintSaveState();});
+  const round={id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,8),tg:(getUser()||{}).tg||'',score:S.score,cat:S.cat.name,answers:S.answers,correct:S.answers.filter(a=>a.ok).length+'/'+S.answers.length,date:new Date().toISOString()};
+  S.roundId=round.id;
+  saveLb(round).then(r=>{
+    if(r==='failed'||r==='signin'){addPending(round);if(r==='failed'){clearTimeout(PEND_TIMER);PEND_TIMER=setTimeout(retryPending,30000);}}
+    if(S.roundId===round.id){S.saveState=r;if(r==='removed')S.blocked=true;paintSaveState();}
+  });
 }
 
 function startQuiz(cat){
@@ -1677,8 +1669,9 @@ function pickCat(id){const c=CATS.find(x=>x.id===id);if(c)startQuiz(c);}
 function setPeriod(p){S.period=p;renderLeaderboard();}
 
 // ── MANAGER TOOLS ──────────────────────────────────────────
+// Every manager change is checked and saved inside the Google Sheet. The passcode is checked there too.
 let PENDING_NAME={first:'',last:''};
-let MGR_DATA=null,MGR_BOARD=[],MGR_BUSY=false,MGR_FLASH='',PLAYERS=[],REMOVED=[];
+let MGR_PASS='',MGR_BOARD=[],MGR_BUSY=false,MGR_FLASH='',PLAYERS=[],REMOVED=[];
 function ha(s){return h(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function fmtDate(d){try{return d?new Date(d).toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'}):'';}catch(e){return '';}}
 function firstName(n){return String(n||'').split(' ')[0];}
@@ -1690,28 +1683,31 @@ function mgrNav(active){
 function mgrScreen(inner,back){app().innerHTML=`${hdr(back||'goLb()')}<div class="inner">${inner}</div>`;window.scrollTo(0,0);}
 function mgrLoading(msg){mgrScreen(`<div style="text-align:center;padding:48px 20px;color:#888"><div style="font-size:40px;margin-bottom:12px">&#9203;</div><p style="font-size:14px">${msg}</p><p class="note" style="color:#999">Please wait, this can take a few seconds.</p></div>`);}
 function mgrProblem(back){
-  mgrScreen(`<div class="card" style="margin:24px 0;width:100%;text-align:center"><div style="font-size:44px;margin-bottom:8px">&#128268;</div><h2 style="margin-top:0">We could not connect just now</h2><p class="sub">Nothing has been changed. Please check your internet connection and try again in a minute.</p>${pbtn('Try again',back||'renderManager()')}</div>`);
-}
-// Every manager change: read the latest scores, apply the change, save. If anything fails, nothing is saved.
-// change(data) returns nothing when it worked, or a short message to show instead of saving.
-async function mgrWrite(change,doneMsg,back,backFn){
-  if(MGR_BUSY)return;MGR_BUSY=true;
-  mgrLoading('Saving your change...');
-  let data;
-  try{data=await fetchAll(true);}catch(e){console.error(e);MGR_BUSY=false;mgrProblem(back);return;}
-  const msg=change(data);
-  if(msg){MGR_BUSY=false;MGR_DATA=data;MGR_FLASH='';mgrNote(msg,back);return;}
-  try{await putAll(data);}catch(e){console.error(e);MGR_BUSY=false;mgrProblem(back);return;}
-  MGR_BUSY=false;MGR_DATA=data;MGR_FLASH=doneMsg;backFn();
+  mgrScreen(`<div class="card" style="margin:24px 0;width:100%;text-align:center"><div style="font-size:44px;margin-bottom:8px">&#128268;</div><h2 style="margin-top:0">We could not connect just now</h2><p class="sub">Nothing has been changed. Please check your internet connection and try again in a minute.</p>${pbtn('Try again',back||'renderManagerView()')}</div>`);
 }
 function mgrNote(msg,back){mgrScreen(`<div class="card" style="margin:24px 0;width:100%;text-align:center"><div style="font-size:44px;margin-bottom:8px">&#128161;</div><p class="sub" style="margin-bottom:10px">${msg}</p>${pbtn('OK',back)}</div>`);}
+// Reads from the Sheet as a manager. Returns null (and shows a message) if it did not work.
+async function mgrGet(action,data,back){
+  let r=null;try{r=await api(action,Object.assign({pass:MGR_PASS},data||{}));}catch(e){console.error(e);}
+  if(!r){mgrProblem(back);return null;}
+  if(!r.ok&&r.error==='passcode'){MGR_PASS='';goManagerLogin('The manager passcode has been changed. Please type the new one.');return null;}
+  return r;
+}
+// Every manager change: send it, then go back to the screen it came from. If anything fails, nothing is changed.
+async function mgrWrite(action,data,doneMsg,back,backFn){
+  if(MGR_BUSY)return;MGR_BUSY=true;
+  mgrLoading('Saving your change...');
+  const r=await mgrGet(action,data,back);
+  MGR_BUSY=false;if(!r)return;
+  if(!r.ok){mgrNote(h(r.error||'That did not work. Please try again.'),back);return;}
+  MGR_FLASH=doneMsg;backFn();
+}
 
-function goManagerLogin(){
+function goManagerLogin(msg){
   app().innerHTML=`${hdr('goLb()')}<div class="card"><h2 style="margin-top:0">&#128274; Manager Tools</h2><p style="color:#666;font-size:14px;margin:4px 0 0">For team leaders only. Enter the manager passcode to continue.</p><input type="password" id="mp" placeholder="Manager passcode" onkeydown="if(event.key==='Enter')checkManagerPass()"><div class="err" id="mperr"></div><button class="pb" id="mpbtn" onclick="checkManagerPass()">Enter</button></div>`;
+  if(msg){const e=document.getElementById('mperr');e.textContent=msg;e.style.display='block';}
   setTimeout(()=>document.getElementById('mp')&&document.getElementById('mp').focus(),100);
 }
-// The manager passcode set on screen only counts while the passcode in this file is unchanged.
-function currentMgrPass(rec){return(rec&&typeof rec.managerPass==='string'&&rec.managerPass&&rec.managerPassBase===MANAGER_PASS)?rec.managerPass:MANAGER_PASS;}
 let MGR_CHECKING=false;
 async function checkManagerPass(){
   if(MGR_CHECKING)return;
@@ -1719,46 +1715,53 @@ async function checkManagerPass(){
   const e=document.getElementById('mperr');const say=t=>{e.textContent=t;e.style.display='block';};
   if(!v){say('Please type the manager passcode.');return;}
   MGR_CHECKING=true;const btn=document.getElementById('mpbtn');if(btn){btn.disabled=true;btn.textContent='Checking, please wait...';}
-  let data=null;try{data=await fetchAll(true);}catch(err){console.error(err);}
+  let r=null;try{r=await api('mgrCheck',{pass:v});}catch(err){console.error(err);}
   MGR_CHECKING=false;if(btn){btn.disabled=false;btn.textContent='Enter';}
-  if(!data){say('We could not connect just now. Please check your internet connection and try again in a minute.');return;}
-  if(v!==currentMgrPass(data)){say('That passcode does not match. Please check it and try again.');return;}
-  MGR_DATA=data;renderManagerView();
-}
-async function renderManager(){
-  mgrLoading('Loading manager tools...');
-  try{MGR_DATA=await fetchAll(true);}catch(e){console.error(e);mgrProblem('renderManager()');return;}
-  renderManagerView();
+  if(!r){say('We could not connect just now. Please check your internet connection and try again in a minute.');return;}
+  if(!r.ok){say('That passcode does not match. Please check it and try again.');return;}
+  MGR_PASS=v;renderManagerView();
 }
 
 // Scores tab
-function renderManagerView(){
-  if(!MGR_DATA){renderManager();return;}
-  MGR_BOARD=visible(MGR_DATA,MGR_DATA.scores[lbKey()]);
+async function renderManagerView(){
+  if(!MGR_PASS){goManagerLogin();return;}
+  mgrLoading('Loading scores...');
+  const r=await mgrGet('mgrBoard',{period:lbKey()},'renderManagerView()');if(!r)return;
+  MGR_BOARD=r.entries||[];
   const board=MGR_BOARD;
   mgrScreen(`<h2 style="margin-top:12px">&#128274; Manager Tools</h2>${mgrNav('scores')}${flashHtml()}
   <div class="lt">
     <button class="ltb ${S.period==='monthly'?'on':'off'}" onclick="setMgrPeriod('monthly')">This month</button>
     <button class="ltb ${S.period==='weekly'?'on':'off'}" onclick="setMgrPeriod('weekly')">This week</button>
   </div>
-  ${board.length===0?`<div style="text-align:center;padding:30px;color:#999"><p>No scores in this period yet.</p></div>`:`<div class="ll">${board.map((e,i)=>`<div class="lr mrow"><div style="flex:1;min-width:0"><p style="margin:0;font-weight:700;font-size:14px;color:#0A52A0">${h(e.name)}</p><p style="margin:0;font-size:11px;color:#888">${h(e.cat)} &middot; ${fmtDate(e.date)} &middot; <b>${(e.score||0).toLocaleString()} pts</b></p></div><div class="mbs"><button class="mb" onclick="viewAnswers(${i})">View</button><button class="mb soft" onclick="askRemoveScore(${i})">Delete</button></div></div>`).join('')}</div>`}
-  <p class="note" style="color:#888">Tap <b>View</b> to see how someone answered. Tap <b>Delete</b> to take one score off, for example a test round.</p>
+  ${board.length===0?`<div style="text-align:center;padding:30px;color:#999"><p>No scores in this period yet.</p></div>`:`<div class="ll">${board.map((e,i)=>`<div class="lr mrow"><div style="flex:1;min-width:0"><p style="margin:0;font-weight:700;font-size:14px;color:#0A52A0">${h(e.name)}</p><p style="margin:0;font-size:11px;color:#888">${h(e.cat)} &middot; ${fmtDate(e.date)} &middot; <b>${(e.score||0).toLocaleString()} pts</b>${e.manual?' &middot; added by a manager':''}</p></div><div class="mbs"><button class="mb" onclick="viewAnswers(${i})">View</button><button class="mb soft" onclick="askRemoveScore(${i})">Delete</button></div></div>`).join('')}</div>`}
+  <p class="note" style="color:#888">Tap <b>View</b> to see how someone answered. Tap <b>Delete</b> to take one score off, for example a test round or the wrong category.</p>
+  ${sbtn('&#10133; Add a score that did not save','renderAddScore()')}
+  ${sbtn('&#128190; Download all scores (Excel)','downloadScores()')}
   <div style="margin-top:24px;padding-top:16px;border-top:1px solid #ddd">
     <p class="sl" style="margin-bottom:6px">START A FRESH LEADERBOARD</p>
-    <p class="sub" style="font-size:13px;margin-bottom:6px">Only use these to reset the scores. To take one person off, use the <b>Players</b> tab instead.</p>
+    <p class="sub" style="font-size:13px;margin-bottom:6px">Only use these to reset the scores. To take one person off, use the <b>Players</b> tab instead. Cleared scores are still kept in the Google Sheet.</p>
     <button class="sb" onclick="askClear('weekly')">Clear this week's scores</button>
     <button class="sb" onclick="askClear('monthly')">Clear this month's scores</button>
     <button class="sb warn" style="margin-top:8px" onclick="askClear('all')">Clear every score on record</button>
+  </div>
+  <div style="margin-top:24px;padding-top:16px;border-top:1px solid #ddd">
+    <p class="sl" style="margin-bottom:6px">SCORES FROM THE OLD SCOREBOARD</p>
+    <p class="sub" style="font-size:13px;margin-bottom:6px">Copies every score from before the move into the Google Sheet. It only needs doing once, and pressing it again never makes doubles. The old scoreboard is only read, never changed.</p>
+    <button class="sb" onclick="moveOldScores()">Move scores across</button>
   </div>`);
 }
 function setMgrPeriod(p){S.period=p;renderManagerView();}
-function viewAnswers(idx){
-  const e=MGR_BOARD[idx];
-  if(!e||!e.answers||!e.answers.length){mgrNote('There is no answer breakdown saved for this score.','renderManagerView()');return;}
+async function viewAnswers(idx){
+  const e=MGR_BOARD[idx];if(!e)return;
+  mgrLoading('Loading answers...');
+  const r=await mgrGet('answers',{id:e.id},'renderManagerView()');if(!r)return;
+  const an=r.answers||[];
+  if(!an.length){mgrNote('There is no answer breakdown saved for this score.','renderManagerView()');return;}
   mgrScreen(`<h2 style="margin-top:12px">${h(e.name)}&#39;s round</h2>
   <p class="sub" style="margin-bottom:10px">${h(e.cat)} &middot; ${(e.score||0).toLocaleString()} pts &middot; ${fmtDate(e.date)}</p>
   <div style="background:#fff;border-radius:16px;padding:18px;box-shadow:0 2px 12px rgba(10,82,160,.08)">
-    <div class="rv" style="max-height:none">${e.answers.map(a=>`<div class="rvi"><p style="font-size:13px;font-weight:600;margin:0 0 3px">${a.ok?'&#9989;':'&#10060;'} ${h(a.q)}</p><p style="font-size:12px;color:#888;margin:0">Answered: ${h(a.ua)}${!a.ok?` &middot; Correct: ${h(a.ca)}`:''}</p></div>`).join('')}</div>
+    <div class="rv" style="max-height:none">${an.map(a=>`<div class="rvi"><p style="font-size:13px;font-weight:600;margin:0 0 3px">${a.ok?'&#9989;':'&#10060;'} ${h(a.q)}</p><p style="font-size:12px;color:#888;margin:0">Answered: ${h(a.ua)}${!a.ok?` &middot; Correct: ${h(a.ca)}`:''}</p></div>`).join('')}</div>
   </div>
   ${pbtn('&#8592; Back to scores','renderManagerView()')}`,'renderManagerView()');
 }
@@ -1766,46 +1769,96 @@ function askRemoveScore(idx){
   const e=MGR_BOARD[idx];if(!e)return;
   mgrScreen(`<div class="card" style="margin:24px 0;width:100%"><h2 style="margin-top:0">Delete this score?</h2>
   <div class="cbx"><b>${h(e.name)}</b><br>${h(e.cat)} &middot; ${(e.score||0).toLocaleString()} pts &middot; ${fmtDate(e.date)}</div>
-  <ul class="bl"><li>This one score comes off the weekly and monthly leaderboards.</li><li>${h(firstName(e.name))} stays on Passport Pro and can keep playing.</li><li>A deleted score cannot be brought back.</li></ul>
+  <ul class="bl"><li>This score comes off the leaderboard.</li><li>If ${h(firstName(e.name))} played this category more than once, their next best score shows instead.</li><li>${h(firstName(e.name))} stays on Passport Pro and can keep playing.</li><li>The score is still kept in the Google Sheet, marked as deleted.</li></ul>
   <button class="pb warnp" onclick="doRemoveScore(${idx})">Yes, delete this score</button>${sbtn('No, go back','renderManagerView()')}</div>`,'renderManagerView()');
 }
-function doRemoveScore(idx){
-  const t=MGR_BOARD[idx];if(!t)return;const g=groupKey(t);
-  mgrWrite(data=>{
-    let found=0;
-    Object.keys(data.scores).forEach(k=>{const b=data.scores[k]||[];const kept=b.filter(e=>!(groupKey(e)===g&&e.cat===t.cat&&e.date===t.date));found+=b.length-kept.length;data.scores[k]=kept;});
-    if(!found)return 'This score has already been deleted.';
-  },'Score deleted.','renderManagerView()',renderManagerView);
-}
+function doRemoveScore(idx){const t=MGR_BOARD[idx];if(!t)return;mgrWrite('del',{id:t.id},'Score deleted.','renderManagerView()',renderManagerView);}
 function askClear(period){
   const what=period==='all'?'every score on record, for every week and month':(period==='weekly'?'all of this week\'s scores':'all of this month\'s scores');
   mgrScreen(`<div class="card" style="margin:24px 0;width:100%"><h2 style="margin-top:0">Clear ${period==='all'?'every score':'these scores'}?</h2>
-  <p class="sub">This clears ${what}. Everyone starts again from zero.</p>
-  <ul class="bl"><li>Players, removed players and the team password are not affected.</li><li>Cleared scores cannot be brought back.</li><li>To take off just one person, use the <b>Players</b> tab instead.</li></ul>
+  <p class="sub">This clears ${what} from the leaderboard. Everyone starts again from zero.</p>
+  <ul class="bl"><li>Players, removed players and the passwords are not affected.</li><li>The scores are still kept in the Google Sheet, marked as cleared.</li><li>To take off just one person, use the <b>Players</b> tab instead.</li></ul>
   <button class="pb warnp" onclick="doClear('${period}')">Yes, clear ${period==='all'?'every score':'them'}</button>${sbtn('No, go back','renderManagerView()')}</div>`,'renderManagerView()');
 }
-function doClear(period){
-  mgrWrite(data=>{
-    if(period==='all'){data.scores={};}
-    else if(period==='weekly'){delete data.scores[weekKey()];}
-    else{delete data.scores[monthKey()];}
-  },'Scores cleared.','renderManagerView()',renderManagerView);
+function doClear(period){mgrWrite('clear',{period:period==='all'?'all':period==='weekly'?weekKey():monthKey()},'Scores cleared.','renderManagerView()',renderManagerView);}
+
+// For a round that finished but did not reach the leaderboard (the player has a screenshot of the score).
+function renderAddScore(err,keep){
+  const k=keep||{};
+  const opts=CATS.map(c=>`<option value="${ha(c.name)}"${k.cat===c.name?' selected':''}>${h(c.name)}</option>`).join('');
+  mgrScreen(`<div class="card" style="margin:24px 0;width:100%"><h2 style="margin-top:0">Add a score that did not save</h2>
+  <p class="sub" style="margin-bottom:0">Use this when someone finished a round but their score did not reach the leaderboard. Please check their screenshot first.</p>
+  <label class="lbl" for="af">First name</label><input type="text" id="af" value="${ha(k.first||'')}">
+  <label class="lbl" for="al">Surname</label><input type="text" id="al" value="${ha(k.last||'')}">
+  <label class="lbl" for="ac">Category</label><select id="ac" style="width:100%;padding:12px;border:2px solid #E0E8F0;border-radius:10px;font-size:15px;margin-top:4px;background:#fff">${opts}</select>
+  <label class="lbl" for="ap">Points</label><input type="text" id="ap" inputmode="numeric" value="${ha(k.pts||'')}" placeholder="e.g. 2747">
+  <div class="err" id="aerr"></div>
+  <ul class="bl"><li>The score goes onto this week and this month, dated today.</li><li>Type the name exactly as the person signs in, so it joins their other scores.</li></ul>
+  <button class="pb" style="margin-top:12px" onclick="doAddScore()">Add score</button>${sbtn('Cancel','renderManagerView()')}</div>`,'renderManagerView()');
+  if(err){const e=document.getElementById('aerr');e.textContent=err;e.style.display='block';}
+}
+function doAddScore(){
+  const first=tidyName(document.getElementById('af').value),last=tidyName(document.getElementById('al').value);
+  const cat=document.getElementById('ac').value;const pts=parseInt(String(document.getElementById('ap').value).replace(/[^0-9]/g,''),10);
+  const keep={first,last,cat,pts:isNaN(pts)?'':pts};
+  if(!first||!last){renderAddScore('Please add a first name and a surname.',keep);return;}
+  if(!pts||pts<1||pts>20000){renderAddScore('Please type the points as a number, for example 2747.',keep);return;}
+  mgrWrite('add',{first,last,cat,score:pts,month:monthKey(),week:weekKey()},'Score added for '+h(first+' '+last)+'.','renderManagerView()',renderManagerView);
+}
+// A full copy of every score in the Sheet, as a file that opens in Excel.
+async function downloadScores(){
+  mgrLoading('Getting every score ready...');
+  const r=await mgrGet('export',{},'renderManagerView()');if(!r)return;
+  const rows=[['Name','Category','Points','Date','Month','Week','Status','Added by manager','Correct answers','Answer breakdown']];
+  (r.rows||[]).forEach(e=>{const an=e.answers||[];rows.push([e.name,e.cat,e.score||0,e.date?new Date(e.date).toLocaleString('en-ZA'):'',e.month,e.week,e.status+((r.removed||{})[e.g]?' (player removed)':''),e.manual?'Yes':'',e.correct||'',an.map(a=>(a.ok?'RIGHT: ':'WRONG: ')+a.q+' | Answered: '+a.ua+(a.ok?'':' | Correct: '+a.ca)).join('\n')]);});
+  const csv='﻿'+rows.map(x=>x.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download='Passport Pro scores '+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+  MGR_FLASH='Your download has started.';renderManagerView();
+}
+// Copies the old scoreboard into the Sheet. Reads the old one only, never writes to it.
+function oldRows(rec){
+  const out={};
+  const fromKey=k=>{let m=String(k).match(/^tft_lb_w_(\d+)_(\d+)$/);if(m)return{week:m[1]+'-W'+pad2(m[2])};m=String(k).match(/^tft_lb_(\d+)_(\d+)$/);return m?{month:m[1]+'-'+pad2(m[2])}:{};};
+  const add=(e,k)=>{
+    if(!e||!e.cat)return;const g=groupKey(e);const date=e.date||'';
+    const id='old|'+g+'|'+e.cat+'|'+date+'|'+(e.score||0);
+    const d=date?new Date(date):null;const ok=d&&!isNaN(d.getTime());const fk=fromKey(k);
+    const ans=(e.answers||[]).map(a=>({q:a.q,ok:!!a.ok,ua:a.ua,ca:a.ca}));
+    const p=out[id];
+    if(!p)out[id]={id,date:date||new Date().toISOString(),name:e.name||'',cat:e.cat,score:e.score||0,month:ok?monthKey(d):(fk.month||''),week:ok?weekKey(d):(fk.week||''),g,answers:ans,correct:ans.length?ans.filter(a=>a.ok).length+'/'+ans.length:''};
+    else{if(!p.answers.length&&ans.length){p.answers=ans;p.correct=ans.filter(a=>a.ok).length+'/'+ans.length;}if(!p.month&&fk.month)p.month=fk.month;if(!p.week&&fk.week)p.week=fk.week;}
+  };
+  Object.keys(rec.scores||{}).forEach(k=>(rec.scores[k]||[]).forEach(e=>add(e,k)));
+  Object.keys(rec.removed||{}).forEach(g=>{const ent=(rec.removed[g]||{}).entries||{};Object.keys(ent).forEach(k=>(ent[k]||[]).forEach(e=>add(e,k)));});
+  return Object.values(out);
+}
+async function moveOldScores(){
+  if(MGR_BUSY)return;MGR_BUSY=true;
+  mgrLoading('Reading the old scoreboard...');
+  let rec=null;
+  try{const res=await fetch(OLD_JBURL+'/latest',{headers:{'X-Master-Key':OLD_JBKEY},cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const d=await res.json();rec=d&&d.record;}catch(e){console.error(e);}
+  if(!rec||typeof rec!=='object'){MGR_BUSY=false;mgrNote('We could not read the old scoreboard just now. Nothing has been changed. Please try again in a minute.','renderManagerView()');return;}
+  const rows=oldRows(rec);
+  const removed=Object.keys(rec.removed||{}).map(g=>({g,name:(rec.removed[g]||{}).name||'',on:(rec.removed[g]||{}).on||''}));
+  const renamed=Object.keys(rec.renamed||{}).map(from=>({from,first:(rec.renamed[from]||{}).first,last:(rec.renamed[from]||{}).last}));
+  const teamPass=(typeof rec.teamPass==='string'&&rec.teamPass)?rec.teamPass:OLD_TEAM_CODE;
+  const mgrPass=(typeof rec.managerPass==='string'&&rec.managerPass&&rec.managerPassBase===OLD_MANAGER_PASS)?rec.managerPass:OLD_MANAGER_PASS;
+  mgrLoading('Copying '+rows.length+' scores into the Google Sheet...');
+  const r=await mgrGet('import',{rows,removed,renamed,teamPass,mgrPass},'renderManagerView()');
+  MGR_BUSY=false;if(!r)return;
+  if(!r.ok){mgrNote(h(r.error||'That did not work. Nothing has been changed. Please try again.'),'renderManagerView()');return;}
+  if(mgrPass!==MGR_PASS){try{const c=await api('mgrCheck',{pass:MGR_PASS});if(!c.ok)MGR_PASS=mgrPass;}catch(e){}}
+  MGR_FLASH=r.added?`Done. ${r.added} scores copied across${r.skipped?`, ${r.skipped} were already here`:''}.`:'Done. Every old score was already here, nothing new to copy.';
+  renderManagerView();
 }
 
 // Players tab
-function buildPlayers(rec){
-  const map={};
-  Object.keys(rec.scores).forEach(k=>(rec.scores[k]||[]).forEach(e=>{
-    const g=groupKey(e);if(rec.removed[g])return;
-    let p=map[g];if(!p)p=map[g]={g:g,name:e.name,last:'',legacy:g.indexOf('n:')===0};
-    if(e.date&&(!p.last||e.date>p.last)){p.last=e.date;p.name=e.name;}
-  }));
-  return Object.values(map).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
-}
-function renderPlayers(){
-  if(!MGR_DATA){renderManager();return;}
-  PLAYERS=buildPlayers(MGR_DATA);
-  REMOVED=Object.keys(MGR_DATA.removed).map(g=>Object.assign({g:g},MGR_DATA.removed[g])).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+async function renderPlayers(){
+  if(!MGR_PASS){goManagerLogin();return;}
+  mgrLoading('Loading players...');
+  const r=await mgrGet('players',{},'renderPlayers()');if(!r)return;
+  PLAYERS=r.players||[];REMOVED=r.removed||[];
   mgrScreen(`<h2 style="margin-top:12px">&#128274; Manager Tools</h2>${mgrNav('players')}${flashHtml()}
   <p class="sub" style="margin-bottom:10px">Everyone who has a score on Passport Pro. Remove someone who has left, or fix a name that was typed incorrectly.</p>
   ${PLAYERS.length>6?`<input type="text" id="pf" placeholder="Search for a name" oninput="filterPlayers()" style="margin:0 0 12px">`:''}
@@ -1815,7 +1868,7 @@ function renderPlayers(){
   <details class="help"><summary>What do I do when...</summary>
     <p><b>Someone leaves the team?</b><br>Tap <b>Remove</b> next to their name. Then change the team password, so they cannot sign in again under a different name.</p>
     <p><b>Someone new joins?</b><br>Give them the team password. They sign in with their own first name and surname. Nothing else is needed.</p>
-    <p><b>A name is spelt wrong, or one person shows twice?</b><br>Tap <b>Rename</b> and type the correct name. If that name is already on the list, the two are combined and the best score in each category is kept.</p>
+    <p><b>A name is spelt wrong, or one person shows twice?</b><br>Tap <b>Rename</b> and type the correct name. If that name is already on the list, the two are combined and the best score in each category shows.</p>
     <p><b>A computer still shows someone else's name?</b><br>On the home screen, tap <b>Not you? Log out</b>. If that person has been removed, the computer signs them out by itself.</p>
     <p><b>I removed someone by mistake?</b><br>Find them under Removed players and tap <b>Bring back</b>. Their scores come back too.</p>
     <p><b>A new person has the same name as someone removed?</b><br>Ask them to add an initial to their surname when they sign in, for example Mokoena N.</p>
@@ -1832,30 +1885,8 @@ function askRemove(i){
   <ul class="bl"><li>Their scores come off every leaderboard, weekly and monthly.</li><li>They can no longer sign in with this name. If they are signed in somewhere, they are signed out.</li><li>No one else is affected.</li><li>You can bring them back at any time from <b>Removed players</b>.</li></ul>
   <button class="pb warnp" onclick="doRemove(${i})">Yes, remove ${h(firstName(p.name))}</button>${sbtn('No, go back','renderPlayers()')}</div>`,'renderPlayers()');
 }
-function doRemove(i){
-  const p=PLAYERS[i];if(!p)return;const g=p.g;
-  mgrWrite(data=>{
-    if(data.removed[g])return h(p.name)+' has already been removed.';
-    const kept={};let found=0;
-    Object.keys(data.scores).forEach(k=>{
-      const b=data.scores[k]||[];
-      const mine=b.filter(e=>groupKey(e)===g);
-      if(mine.length){found+=mine.length;kept[k]=mine.map(e=>({name:e.name,score:e.score,cat:e.cat,date:e.date,pid:e.pid}));}
-      data.scores[k]=b.filter(e=>groupKey(e)!==g);
-    });
-    data.removed[g]={name:p.name,on:new Date().toISOString(),entries:kept};
-  },h(p.name)+' has been removed.','renderPlayers()',renderPlayers);
-}
-function doRestore(j){
-  const r=REMOVED[j];if(!r)return;const g=r.g;
-  mgrWrite(data=>{
-    const rec=data.removed[g];
-    if(!rec)return h(r.name)+' is already back on Passport Pro.';
-    const ent=rec.entries||{};
-    Object.keys(ent).forEach(k=>{const b=data.scores[k]||[];(ent[k]||[]).forEach(e=>mergeInto(b,e));data.scores[k]=tidyBoard(b);});
-    delete data.removed[g];
-  },h(r.name)+' is back on Passport Pro.','renderPlayers()',renderPlayers);
-}
+function doRemove(i){const p=PLAYERS[i];if(!p)return;mgrWrite('remove',{g:p.g,name:p.name},h(p.name)+' has been removed.','renderPlayers()',renderPlayers);}
+function doRestore(j){const r=REMOVED[j];if(!r)return;mgrWrite('restore',{g:r.g},h(r.name)+' is back on Passport Pro.','renderPlayers()',renderPlayers);}
 function askRename(i,err){
   const p=PLAYERS[i];if(!p)return;
   const parts=String(p.name).trim().split(' ');const f=parts.shift()||'';const l=parts.join(' ');
@@ -1874,39 +1905,24 @@ function checkRename(i){
   if(!first||!last){e.textContent='Please add a first name and a surname.';e.style.display='block';return;}
   const np=normPid(first,last);const nn=first+' '+last;
   if(np===p.g&&nn===p.name){renderPlayers();return;}
-  if(MGR_DATA.removed[np]){e.textContent=nn+' is on the Removed players list. Bring them back first, then try again.';e.style.display='block';return;}
+  if(REMOVED.some(r=>r.g===np)){e.textContent=nn+' is on the Removed players list. Bring them back first, then try again.';e.style.display='block';return;}
   PENDING_NAME={first:first,last:last};
   const other=PLAYERS.find(x=>x.g===np&&x.g!==p.g);
   if(other){
     mgrScreen(`<div class="card" style="margin:24px 0;width:100%"><h2 style="margin-top:0">Combine with ${h(other.name)}?</h2>
-    <p class="sub">There is already a player called <b>${h(other.name)}</b>. If this is the same person, their scores will be combined and the best score in each category is kept.</p>
+    <p class="sub">There is already a player called <b>${h(other.name)}</b>. If this is the same person, their scores will be combined and the best score in each category shows.</p>
     <button class="pb" onclick="doRename(${i},PENDING_NAME.first,PENDING_NAME.last)">Yes, it is the same person</button>${sbtn('No, go back','askRename('+i+')')}</div>`,'renderPlayers()');
     return;
   }
   doRename(i,first,last);
 }
-function doRename(i,first,last){
-  const p=PLAYERS[i];if(!p)return;const oldG=p.g;const np=normPid(first,last);const nn=first+' '+last;
-  mgrWrite(data=>{
-    if(data.removed[np])return nn+' is on the Removed players list. Bring them back first, then try again.';
-    let found=0;
-    Object.keys(data.scores).forEach(k=>{
-      const b=data.scores[k]||[];
-      const moving=b.filter(e=>groupKey(e)===oldG);const rest=b.filter(e=>groupKey(e)!==oldG);
-      moving.forEach(e=>{found++;e.name=nn;e.pid=np;mergeInto(rest,e);});
-      data.scores[k]=tidyBoard(rest);
-    });
-    if(!found)return 'We could not find scores for '+h(p.name)+'. They may have been renamed or removed already.';
-    delete data.renamed[np];
-    Object.keys(data.renamed).forEach(k=>{const t=data.renamed[k];if(t&&normPid(t.first,t.last)===oldG)data.renamed[k]={first:first,last:last};});
-    if(oldG.indexOf('u:')===0)data.renamed[oldG]={first:first,last:last};
-  },'Saved. The name is now '+h(nn)+'.','renderPlayers()',renderPlayers);
-}
+function doRename(i,first,last){const p=PLAYERS[i];if(!p)return;mgrWrite('rename',{g:p.g,first,last},'Saved. The name is now '+h(first+' '+last)+'.','renderPlayers()',renderPlayers);}
 
-// Team password tab
-function currentTeamPass(rec){return(rec&&typeof rec.teamPass==='string'&&rec.teamPass)?rec.teamPass:TEAM_CODE;}
-function renderTeamPass(){
-  if(!MGR_DATA){renderManager();return;}
+// Passwords tab
+let PW_CACHE=null;
+async function renderTeamPass(){
+  if(!MGR_PASS){goManagerLogin();return;}
+  PW_CACHE=null;
   const dots='&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;';
   mgrScreen(`<h2 style="margin-top:12px">&#128274; Manager Tools</h2>${mgrNav('pass')}${flashHtml()}
   <div class="card" style="margin:0 0 16px;width:100%">
@@ -1927,10 +1943,14 @@ function renderTeamPass(){
   <label class="lbl" for="mp2">Type the new manager passcode again</label><input type="text" id="mp2" autocomplete="off">
   <div class="err" id="mperr2"></div>
   <button class="pb" style="margin-top:18px" onclick="saveMgrPw()">Save new manager passcode</button>
-  <ul class="bl" style="margin-top:16px"><li>Share it only with team leaders.</li><li>Keep a note of both passwords somewhere safe that another team leader can find.</li></ul>
+  <ul class="bl" style="margin-top:16px"><li>Share it only with team leaders.</li><li>Both passwords are also in the Settings tab of the Passport Pro Scores Google Sheet, so they can always be found there.</li></ul>
   </div>`);
 }
-function showPw(id){const el=document.getElementById(id);if(el)el.textContent=id==='cmp'?currentMgrPass(MGR_DATA):currentTeamPass(MGR_DATA);}
+async function showPw(id){
+  const el=document.getElementById(id);if(!el)return;
+  if(!PW_CACHE){el.textContent='...';let r=null;try{r=await api('passwords',{pass:MGR_PASS});}catch(e){}if(!r||!r.ok){el.textContent='could not load, try again';return;}PW_CACHE=r;}
+  const t=document.getElementById(id);if(t)t.textContent=id==='cmp'?PW_CACHE.mgr:PW_CACHE.team;
+}
 function readPair(a1,a2,errId){
   const a=(document.getElementById(a1).value||'').trim(),b=(document.getElementById(a2).value||'').trim();
   const e=document.getElementById(errId);const say=t=>{e.textContent=t;e.style.display='block';};
@@ -1938,18 +1958,16 @@ function readPair(a1,a2,errId){
   if(a!==b){say('The two entries are not the same. Please type them again.');return null;}
   return{v:a,say:say};
 }
-function savePw(){
-  const r=readPair('np1','np2','perr');if(!r)return;
-  if(r.v===currentMgrPass(MGR_DATA)){r.say('Please choose a password that is different from the manager passcode.');return;}
-  mgrWrite(data=>{if(r.v===currentMgrPass(data))return 'Please choose a team password that is different from the manager passcode.';data.teamPass=r.v;},'Team password changed. Please share the new password with your team.','renderTeamPass()',renderTeamPass);
-}
-function saveMgrPw(){
+function savePw(){const r=readPair('np1','np2','perr');if(!r)return;mgrWrite('setTeam',{v:r.v},'Team password changed. Please share the new password with your team.','renderTeamPass()',renderTeamPass);}
+async function saveMgrPw(){
   const r=readPair('mp1','mp2','mperr2');if(!r)return;
-  if(r.v.toLowerCase()===currentTeamPass(MGR_DATA).toLowerCase()){r.say('Please choose a passcode that is different from the team password.');return;}
-  mgrWrite(data=>{if(r.v.toLowerCase()===currentTeamPass(data).toLowerCase())return 'Please choose a passcode that is different from the team password.';data.managerPass=r.v;data.managerPassBase=MANAGER_PASS;},'Manager passcode changed. Please share it with your team leaders only.','renderTeamPass()',renderTeamPass);
+  if(MGR_BUSY)return;MGR_BUSY=true;mgrLoading('Saving your change...');
+  const res=await mgrGet('setMgr',{v:r.v},'renderTeamPass()');MGR_BUSY=false;if(!res)return;
+  if(!res.ok){mgrNote(h(res.error||'That did not work. Please try again.'),'renderTeamPass()');return;}
+  MGR_PASS=r.v;MGR_FLASH='Manager passcode changed. Please share it with your team leaders only.';renderTeamPass();
 }
 
-(function boot(){const u=getUser();if(u){S.name=u.first+' '+u.last;S.scr='home';renderHome();checkAccess();}else{renderLogin();}})();
+(function boot(){const u=getUser();if(u){S.name=u.first+' '+u.last;S.scr='home';renderHome();checkAccess();}else{const o=readUser();renderLogin(o?MOVED_MSG:'');}})();
 </script>
 </body>
 </html>
