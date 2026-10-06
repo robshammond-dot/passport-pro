@@ -1340,10 +1340,6 @@ const CATS=[
 // and nothing is ever deleted: deleted or cleared scores stay in the Sheet, marked in the Status column.
 // Passwords live in the Settings tab of that Sheet. Forgotten one? Open the Sheet and type a new one there.
 const SHEET_URL='https://script.google.com/macros/s/AKfycbxiiP9VwQ5k-I0qnVjsVBRBF5A98pKLBEFN5eXbwir_Q95f681XqlCJ9oCZKni7_uFJ6Q/exec';
-// The old storage. Only used once, by Manager Tools > Move scores across, which only reads from it.
-const OLD_JBURL='https://api.jsonbin.io/v3/b/6a1e8c75f5f4af5e29abe6b2';
-const OLD_JBKEY='$2a$10$.gdk/eGQNO16FEr4Fv32r.7hS1FS6A4Y0BtJGIfNpmxDXdb3HNPLG';
-const OLD_MANAGER_PASS='thompsons2026',OLD_TEAM_CODE='Train!ng@T4TJNB2026';
 const USER_KEY='tft_pp_user';
 
 function getWeek(d){const u=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const day=u.getUTCDay()||7;u.setUTCDate(u.getUTCDate()+4-day);const ys=new Date(Date.UTC(u.getUTCFullYear(),0,1));return Math.ceil((((u-ys)/86400000)+1)/7);}
@@ -1353,7 +1349,6 @@ function weekKey(d){const n=d||new Date();return `${n.getFullYear()}-W${pad2(get
 function lbKey(){return S.period==='monthly'?monthKey():weekKey();}
 function normPid(first,last){return 'u:'+(first+' '+last).toLowerCase().replace(/\s+/g,' ').trim();}
 function getPlayerId(){const u=getUser();return u?normPid(u.first,u.last):'';}
-function groupKey(e){return(e&&e.pid&&String(e.pid).indexOf('u:')===0)?e.pid:'n:'+String((e&&e.name)||'').toLowerCase().replace(/\s+/g,' ').trim();}
 const nap=ms=>new Promise(r=>setTimeout(r,ms));
 
 // One call to the Google Sheet. Reads use GET, anything with a password or a score uses POST.
@@ -1367,9 +1362,13 @@ async function api(action,data,get){
   return j;
 }
 let LB_FAILED=false;
+// Tries a few times before saying the scores could not load (Google can be busy when everyone finishes at once).
 async function getLb(){
-  try{const r=await api('board',{period:lbKey()},true);if(!r.ok)throw new Error(r.error);LB_FAILED=false;return(r.entries||[]).map(e=>Object.assign(e,{pid:e.g}));}
-  catch(e){console.error(e);LB_FAILED=true;return[];}
+  for(let attempt=0;attempt<4;attempt++){
+    try{const r=await api('board',{period:lbKey()},true);if(!r.ok)throw new Error(r.error);LB_FAILED=false;return(r.entries||[]).map(e=>Object.assign(e,{pid:e.g}));}
+    catch(e){console.error(e);if(attempt<3)await nap(800*(attempt+1)+Math.random()*800);}
+  }
+  LB_FAILED=true;return[];
 }
 // If a manager renamed the person signed in on this device, switch this device to the new name.
 function applyRename(t){const u=getUser();if(!u||!t||!t.first||!t.last)return;saveUser(Object.assign({},u,{first:t.first,last:t.last}));S.name=t.first+' '+t.last;}
@@ -1745,11 +1744,7 @@ async function renderManagerView(){
     <button class="sb" onclick="askClear('monthly')">Clear this month's scores</button>
     <button class="sb warn" style="margin-top:8px" onclick="askClear('all')">Clear every score on record</button>
   </div>
-  <div style="margin-top:24px;padding-top:16px;border-top:1px solid #ddd">
-    <p class="sl" style="margin-bottom:6px">SCORES FROM THE OLD SCOREBOARD</p>
-    <p class="sub" style="font-size:13px;margin-bottom:6px">Copies every score from before the move into the Google Sheet. It only needs doing once, and pressing it again never makes doubles. The old scoreboard is only read, never changed.</p>
-    <button class="sb" onclick="moveOldScores()">Move scores across</button>
-  </div>`);
+`);
 }
 function setMgrPeriod(p){S.period=p;renderManagerView();}
 async function viewAnswers(idx){
@@ -1816,43 +1811,6 @@ async function downloadScores(){
   a.download='Passport Pro scores '+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
   MGR_FLASH='Your download has started.';renderManagerView();
 }
-// Copies the old scoreboard into the Sheet. Reads the old one only, never writes to it.
-function oldRows(rec){
-  const out={};
-  const fromKey=k=>{let m=String(k).match(/^tft_lb_w_(\d+)_(\d+)$/);if(m)return{week:m[1]+'-W'+pad2(m[2])};m=String(k).match(/^tft_lb_(\d+)_(\d+)$/);return m?{month:m[1]+'-'+pad2(m[2])}:{};};
-  const add=(e,k)=>{
-    if(!e||!e.cat)return;const g=groupKey(e);const date=e.date||'';
-    const id='old|'+g+'|'+e.cat+'|'+date+'|'+(e.score||0);
-    const d=date?new Date(date):null;const ok=d&&!isNaN(d.getTime());const fk=fromKey(k);
-    const ans=(e.answers||[]).map(a=>({q:a.q,ok:!!a.ok,ua:a.ua,ca:a.ca}));
-    const p=out[id];
-    if(!p)out[id]={id,date:date||new Date().toISOString(),name:e.name||'',cat:e.cat,score:e.score||0,month:ok?monthKey(d):(fk.month||''),week:ok?weekKey(d):(fk.week||''),g,answers:ans,correct:ans.length?ans.filter(a=>a.ok).length+'/'+ans.length:''};
-    else{if(!p.answers.length&&ans.length){p.answers=ans;p.correct=ans.filter(a=>a.ok).length+'/'+ans.length;}if(!p.month&&fk.month)p.month=fk.month;if(!p.week&&fk.week)p.week=fk.week;}
-  };
-  Object.keys(rec.scores||{}).forEach(k=>(rec.scores[k]||[]).forEach(e=>add(e,k)));
-  Object.keys(rec.removed||{}).forEach(g=>{const ent=(rec.removed[g]||{}).entries||{};Object.keys(ent).forEach(k=>(ent[k]||[]).forEach(e=>add(e,k)));});
-  return Object.values(out);
-}
-async function moveOldScores(){
-  if(MGR_BUSY)return;MGR_BUSY=true;
-  mgrLoading('Reading the old scoreboard...');
-  let rec=null;
-  try{const res=await fetch(OLD_JBURL+'/latest',{headers:{'X-Master-Key':OLD_JBKEY},cache:'no-store'});if(!res.ok)throw new Error('HTTP '+res.status);const d=await res.json();rec=d&&d.record;}catch(e){console.error(e);}
-  if(!rec||typeof rec!=='object'){MGR_BUSY=false;mgrNote('We could not read the old scoreboard just now. Nothing has been changed. Please try again in a minute.','renderManagerView()');return;}
-  const rows=oldRows(rec);
-  const removed=Object.keys(rec.removed||{}).map(g=>({g,name:(rec.removed[g]||{}).name||'',on:(rec.removed[g]||{}).on||''}));
-  const renamed=Object.keys(rec.renamed||{}).map(from=>({from,first:(rec.renamed[from]||{}).first,last:(rec.renamed[from]||{}).last}));
-  const teamPass=(typeof rec.teamPass==='string'&&rec.teamPass)?rec.teamPass:OLD_TEAM_CODE;
-  const mgrPass=(typeof rec.managerPass==='string'&&rec.managerPass&&rec.managerPassBase===OLD_MANAGER_PASS)?rec.managerPass:OLD_MANAGER_PASS;
-  mgrLoading('Copying '+rows.length+' scores into the Google Sheet...');
-  const r=await mgrGet('import',{rows,removed,renamed,teamPass,mgrPass},'renderManagerView()');
-  MGR_BUSY=false;if(!r)return;
-  if(!r.ok){mgrNote(h(r.error||'That did not work. Nothing has been changed. Please try again.'),'renderManagerView()');return;}
-  if(mgrPass!==MGR_PASS){try{const c=await api('mgrCheck',{pass:MGR_PASS});if(!c.ok)MGR_PASS=mgrPass;}catch(e){}}
-  MGR_FLASH=r.added?`Done. ${r.added} scores copied across${r.skipped?`, ${r.skipped} were already here`:''}.`:'Done. Every old score was already here, nothing new to copy.';
-  renderManagerView();
-}
-
 // Players tab
 async function renderPlayers(){
   if(!MGR_PASS){goManagerLogin();return;}
